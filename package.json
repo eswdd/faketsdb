@@ -1,0 +1,32 @@
+{
+  "version": "0.0.0",
+  "private": true,
+  "name": "faketsdb",
+  "description": "A fake implementation of OpenTSDB, generating random but repeatable datasets to aid offline testing of API consumers",
+  "repository": "https://github.com/eswdd/faketsdb",
+  "license": "GPL",
+  "devDependencies": {
+    "http-server": "^0.6.1",
+    "karma": "^0.12.16",
+    "karma-mocha-reporter": "^0.3.0",
+    "karma-jasmine": "^0.1.5",
+    "protractor": "~1.0.0",
+    "shelljs": "^0.2.6",
+    "tmp": "0.0.23"
+  },
+  "scripts": {
+    "prestart": "npm install",
+    "start": "node faketsdb.js",
+    "pretest-continuous": "npm install",
+    "pretest": "npm install",
+    "test-debug": "node node_modules/karma/bin/karma start test/karma.conf.js --debug",
+    "test-continuous": "node node_modules/karma/bin/karma start test/karma.conf.js",
+    "test": "node node_modules/karma/bin/karma start test/karma.conf.js  --single-run"
+  },
+  "dependencies": {
+    "express": "^4.12.0",
+    "body-parser": "^1.15.0",
+    "seedrandom": "^2.4.2",
+    "moment": "^2.11.2"
+  }
+}
