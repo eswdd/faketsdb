@@ -56,6 +56,13 @@ var timeseries = [
 ];
 
 
+var resetAllState = function() {
+    timeseries = [];
+    metrics = [];
+    tagks = [];
+    tagvs = [];
+}
+
 var addTimeSeries = function(metric, tags, type) {
     // see if exists
     for (var i=0; i<timeseries.length; i++) {
@@ -93,7 +100,18 @@ var addTimeSeries = function(metric, tags, type) {
 var suggestImpl = function(req, res) {
     var queryParams = req.query;
     if (queryParams["type"] == "metrics") {
-        res.json(metrics.map(function(m) {return m.name}));
+        if (!queryParams["q"] || queryParams["q"] == "") {
+            res.json(metrics.map(function(m) {return m.name}));
+        }
+        else {
+            var ret = [];
+            for (var i=0; i<metrics.length; i++) {
+                if (metrics[i].name.indexOf(queryParams["q"])==0) {
+                    ret.push(metrics[i].name);
+                }
+            }
+            res.json(ret);
+        }
         return;
     }
     throw 'unhandled response';
@@ -147,7 +165,6 @@ router.post('/aggregators', aggregatorsImpl);
 router.get('/search/lookup', searchLookupGet);
 router.post('/search/lookup', bodyParser.json(), searchLookupPost);
 
-// todo: replace all these with new implementations..
 var allTagValues = function(metric, tagk) {
     var ret = [];
     for (var t=0; t<timeseries.length; t++) {
@@ -510,7 +527,8 @@ var installFakeTsdb = function(app, config) {
 
 module.exports = {
     addTimeSeries: addTimeSeries,
-    install: installFakeTsdb
+    install: installFakeTsdb,
+    reset: resetAllState
 }
 
 // command line running
