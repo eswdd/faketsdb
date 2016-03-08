@@ -15,7 +15,7 @@ var tagks = [
 var tagvs = [
 ];
 
-var uid = function(type, name) {
+var uidMetaFromName = function(type, name) {
     var arr = [];
     switch (type) {
         case "metric": arr = metrics; break;
@@ -25,8 +25,32 @@ var uid = function(type, name) {
     }
     for (var i=0; i<arr.length; i++) {
         if (arr[i].name == name) {
-            return arr[i].uid;
+            return arr[i];
         }
+    }
+    return null;
+}
+
+var uidMetaFromUid = function(type, uid) {
+    var arr = [];
+    switch (type) {
+        case "metric": arr = metrics; break;
+        case "tagk": arr = tagks; break;
+        case "tagv": arr = tagvs; break;
+        default: throw 'Unsupported type: '+type;
+    }
+    for (var i=0; i<arr.length; i++) {
+        if (arr[i].uid == uid) {
+            return arr[i];
+        }
+    }
+    return null;
+}
+
+var uid = function(type, name) {
+    var meta = uidMetaFromName(type, name);
+    if (meta != null) {
+        return meta.uid;
     }
     return null;
 }
@@ -47,7 +71,11 @@ var assignUidIfNecessary = function(type, name) {
     }
 
     var lastUid = arr.length == 0 ? 0 : parseInt(arr[arr.length-1].uid, 16);
-    arr.push({name: name, uid: (lastUid+1).toString(16)});
+    var nextUid = (lastUid+1).toString(16);
+    while (nextUid.length < 6) {
+        nextUid = "0" + nextUid;
+    }
+    arr.push({name: name, uid: nextUid, created: new Date().getTime()/1000});
 
 
 }
@@ -159,11 +187,26 @@ var searchLookupGet = function(req, res) {
     searchLookupImpl(queryParams["m"],queryParams["limit"],queryParams["use_meta"],res);
 }
 
-router.get('/suggest', suggestImpl);
-router.get('/aggregators', aggregatorsImpl);
-router.post('/aggregators', aggregatorsImpl);
-router.get('/search/lookup', searchLookupGet);
-router.post('/search/lookup', bodyParser.json(), searchLookupPost);
+var uidMetaGet = function(req, res) {
+    var queryParams = req.query;
+
+    var meta = uidMetaFromUid(queryParams["type"], queryParams["uid"]);
+    if (meta != null) {
+        res.json({
+            uid: meta.uid,
+            name: meta.name,
+            created: meta.created,
+            type: queryParams["type"].toUpperCase()
+        })
+    }
+    else {
+        res.status(404).json({
+            code: 404,
+            message: queryParams["type"] + " with uid "+queryParams["uid"]+" not found"
+        });
+    }
+
+}
 
 var allTagValues = function(metric, tagk) {
     var ret = [];
@@ -505,7 +548,14 @@ var queryGet = function(req, res) {
     queryImpl(queryParams["start"],queryParams["end"],mArray,arrayResponse,false,res);
 }
 
+// all routes exist here so we know what's implemented
+router.get('/suggest', suggestImpl);
+router.get('/aggregators', aggregatorsImpl);
+router.post('/aggregators', aggregatorsImpl);
+router.get('/search/lookup', searchLookupGet);
+router.post('/search/lookup', bodyParser.json(), searchLookupPost);
 router.get('/query', queryGet);
+router.get('/uid/uidmeta', uidMetaGet);
 
 
 var installFakeTsdb = function(app, config) {
