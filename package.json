@@ -6,21 +6,17 @@
   "license": "GPL",
   "devDependencies": {
     "http-server": "^0.6.1",
-    "karma": "^0.12.16",
-    "karma-mocha-reporter": "^0.3.0",
-    "karma-jasmine": "^0.1.5",
+    "mocha":"^2.4.5",
     "protractor": "~1.0.0",
     "shelljs": "^0.2.6",
+    "supertest": "^1.2.0",
     "tmp": "0.0.23"
   },
   "scripts": {
     "prestart": "npm install",
     "start": "node faketsdb.js",
-    "pretest-continuous": "npm install",
     "pretest": "npm install",
-    "test-debug": "node node_modules/karma/bin/karma start test/karma.conf.js --debug",
-    "test-continuous": "node node_modules/karma/bin/karma start test/karma.conf.js",
-    "test": "node node_modules/karma/bin/karma start test/karma.conf.js  --single-run"
+    "test": "mocha -R spec test/spec.js"
   },
   "dependencies": {
     "express": "^4.12.0",

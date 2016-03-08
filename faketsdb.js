@@ -5,12 +5,6 @@ router.use(bodyParser.json());
 require('seedrandom');
 var moment = require('moment');
 
-// middleware specific to this router
-router.use(function timeLog(req, res, next) {
-    console.log(new Date(Date.now())+': '+req.originalUrl);
-//    console.log('Time: ', Date.now());
-    next();
-})
 
 var metrics = [
 ];
@@ -497,7 +491,20 @@ var queryGet = function(req, res) {
 router.get('/query', queryGet);
 
 
-var installFakeTsdb = function(app) {
+var installFakeTsdb = function(app, config) {
+    if (!config) {
+        config = {
+            log: true
+        };
+    }
+    if (config.log) {
+
+        // middleware specific to this router
+        router.use(function timeLog(req, res, next) {
+            console.log(new Date(Date.now())+': '+req.originalUrl);
+            next();
+        });
+    }
     app.use('/api',router);
 }
 
