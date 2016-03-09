@@ -5,6 +5,7 @@ router.use(bodyParser.json());
 require('seedrandom');
 var moment = require('moment');
 
+var config = {};
 
 var metrics = [
 ];
@@ -14,6 +15,16 @@ var tagks = [
 
 var tagvs = [
 ];
+
+var timeseries = [
+];
+
+var resetAllState = function() {
+    timeseries = [];
+    metrics = [];
+    tagks = [];
+    tagvs = [];
+}
 
 var uidMetaFromName = function(type, name) {
     var arr = [];
@@ -78,17 +89,6 @@ var assignUidIfNecessary = function(type, name) {
     arr.push({name: name, uid: nextUid, created: new Date().getTime()/1000});
 
 
-}
-
-var timeseries = [
-];
-
-
-var resetAllState = function() {
-    timeseries = [];
-    metrics = [];
-    tagks = [];
-    tagvs = [];
 }
 
 var addTimeSeries = function(metric, tags, type) {
@@ -309,14 +309,18 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
         res.json("Missing start parameter");
         return;
     }
-    console.log("---------------------------");
+    if (config.verbose) {
+        console.log("---------------------------");
+    }
 
     var startTime = toDateTime(start);
     var endTime = end ? toDateTime(end) : new Date();
-    console.log("start     = "+start);
-    console.log("end       = "+(end?end:""));
-    console.log("startTime = "+startTime);
-    console.log("endTime   = "+endTime);
+    if (config.verbose) {
+        console.log("start     = "+start);
+        console.log("end       = "+(end?end:""));
+        console.log("startTime = "+startTime);
+        console.log("endTime   = "+endTime);
+    }
 
     var seed = start + (end ? end : "");
     var rand = new Math.seedrandom(seed);
@@ -367,18 +371,21 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
             }
         }
 
-        console.log("Metric: "+metric);
-        console.log("  Agg:  "+aggregator);
-        console.log("  Rate: "+rate);
-        console.log("  Down: "+(downsampled ? downsampled : false));
-        console.log("  Tags: "+JSON.stringify(tags));
+        if (config.verbose) {
+            console.log("Metric: "+metric);
+            console.log("  Agg:  "+aggregator);
+            console.log("  Rate: "+rate);
+            console.log("  Down: "+(downsampled ? downsampled : false));
+            console.log("  Tags: "+JSON.stringify(tags));
+        }
 
         var tagsets = constructUniqueTagSets(tags);
 
-        console.log("  Tsets:"+JSON.stringify(tagsets));
+        if (config.verbose) {
+            console.log("  Tsets:"+JSON.stringify(tagsets));
+        }
 
         for (var s=0; s<tagsets.length; s++) {
-            var aggregateTags = [];
 
             var participatingTimeSeries = [];
             for (var t=0; t<timeseries.length; t++) {
@@ -392,15 +399,26 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
                                 break;
                             }
                         }
-                        else {
-                            if (aggregateTags.indexOf(tags[i].tagk) < 0) {
-                                aggregateTags.push(tags[i].tagk);
-                            }
-                        }
                     }
                     if (participating) {
-                        console.log("    Participant: "+t);
+                        if (config.verbose) {
+                            console.log("    Participant: "+t);
+                        }
                         participatingTimeSeries.push(timeseries[t]);
+                    }
+                }
+            }
+
+            var aggregateTags = [];
+            for (var p=0; p<participatingTimeSeries.length; p++) {
+                for (var k in participatingTimeSeries[p].tags) {
+                    if (participatingTimeSeries[p].tags.hasOwnProperty(k)) {
+                        var foundInTagSet = tagsets[s].hasOwnProperty(k);
+                        if (!foundInTagSet) {
+                            if (aggregateTags.indexOf(k) < 0) {
+                                aggregateTags.push(k);
+                            }
+                        }
                     }
                 }
             }
@@ -415,28 +433,37 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
                 case 'd': downsampleNumberComponent *= 86400 * msMultiplier; break;
                 case 'w': downsampleNumberComponent *= 7 * 86400 * msMultiplier; break;
                 case 'y': downsampleNumberComponent *= 365 * 86400 * msMultiplier; break;
-                default: console.log("unrecognized downsample unit: "+downsampleStringComponent);
+                default:
+                    if (config.verbose) {
+                        console.log("unrecognized downsample unit: "+downsampleStringComponent);
+                    }
             }
 
             var startTimeNormalisedToReturnUnits = ms ? startTime.getTime() : startTime.getTime() / 1000;
             var endTimeNormalisedToReturnUnits = ms ? endTime.getTime() : endTime.getTime() / 1000;
-            console.log("normalised startTime      = "+Math.floor(startTimeNormalisedToReturnUnits));
-            console.log("downsampleNumberComponent = "+downsampleNumberComponent);
+
+            if (config.verbose) {
+                console.log("normalised startTime      = "+Math.floor(startTimeNormalisedToReturnUnits));
+                console.log("downsampleNumberComponent = "+downsampleNumberComponent);
+            }
 
             if (participatingTimeSeries.length > 0) {
-
                 // now generate some data
                 var participantData = new Array(participatingTimeSeries.length);
                 for (var p=0; p<participatingTimeSeries.length; p++) {
                     participantData[p] = [];
-                    // 10% chance of no data at all!
-                    if (rand() >= 0.1) {
+                    // chance of no data at all!
+                    if (rand() >= config.probabilities.noData) {
                         var firstTimeStamp = startTimeNormalisedToReturnUnits % downsampleNumberComponent == 0 ? startTimeNormalisedToReturnUnits :
                             Math.floor((startTimeNormalisedToReturnUnits + downsampleNumberComponent) / downsampleNumberComponent) * downsampleNumberComponent;
-                        console.log("Generating data for p="+p+", starting from "+firstTimeStamp);
+
+                        if (config.verbose) {
+                            console.log("Generating data for p="+p+", starting from "+firstTimeStamp);
+                        }
+
                         for (var t=firstTimeStamp; t<=endTimeNormalisedToReturnUnits; t+=downsampleNumberComponent) {
-                            // 5% chance of missing data point
-                            if (rand() >= 0.05) {
+                            // chance of missing data point
+                            if (rand() >= config.probabilities.missingPoint) {
                                 if (participatingTimeSeries[p].type=="counter" && participantData[p].length>0) {
                                     participantData[p].push([t, participantData[p][participantData[p].length-1][1]+(rand()*100)]);
                                 }
@@ -448,9 +475,13 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
                         }
                     }
                     else {
-                        console.log("excluded as within 10%");
+                        if (config.verbose) {
+                            console.log("excluded as within 10%");
+                        }
                     }
-                    console.log("data = "+JSON.stringify(participantData[p]));
+                    if (config.verbose) {
+                        console.log("data = "+JSON.stringify(participantData[p]));
+                    }
                 }
 
                 for (var p=participantData.length-1; p>=0; p--) {
@@ -466,25 +497,37 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
                 for (var i=0; i<indices.length; i++) {
                     indices[i] = 0;
                 }
-                console.log("    combining "+indices.length+" participating time series");
+                if (config.verbose) {
+                    console.log("    combining "+indices.length+" participating time series");
+                }
                 for (var t=firstTimeStamp; t<=endTimeNormalisedToReturnUnits; t+=downsampleNumberComponent) {
-                    console.log("     t = "+t);
+                    if (config.verbose) {
+                        console.log("     t = "+t);
+                    }
                     var points = [];
                     for (var i=0; i<indices.length; i++) {
                         while (participantData[i][indices[i]][0]<t && indices[i]<participantData[i].length) {
                             indices[i]++;
                         }
-                        console.log("     indices["+i+"] = "+JSON.stringify(indices[i]));
+                        if (config.verbose) {
+                            console.log("     indices["+i+"] = "+JSON.stringify(indices[i]));
+                        }
                         if (indices[i]<participantData[i].length) {
                             if (participantData[i][indices[i]][0]==t) {
-                                console.log("     a");
+                                if (config.verbose) {
+                                    console.log("     a");
+                                }
                                 points.push(participantData[i][indices[i]][1]);
                             }
                             else { // next dp time is greater than time desired
-                                console.log("     b");
+                                if (config.verbose) {
+                                    console.log("     b");
+                                }
                                 // can't interpolate from before beginning
                                 if (indices[i]>0) {
-                                    console.log("     c");
+                                    if (config.verbose) {
+                                        console.log("     c");
+                                    }
                                     var gapSizeTime = participantData[i][indices[i]][0] - participantData[i][indices[i]-1][0];
                                     var gapDiff = participantData[i][indices[i]][1] - participantData[i][indices[i]-1][1];
 
@@ -499,7 +542,9 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
                             }
                         }
                     }
-                    console.log("      For time "+t+", partipating points = "+JSON.stringify(points));
+                    if (config.verbose) {
+                        console.log("      For time "+t+", partipating points = "+JSON.stringify(points));
+                    }
                     // now we have our data points, combine them:
                     var val;
                     switch (aggregator) {
@@ -557,14 +602,47 @@ router.post('/search/lookup', bodyParser.json(), searchLookupPost);
 router.get('/query', queryGet);
 router.get('/uid/uidmeta', uidMetaGet);
 
-
-var installFakeTsdb = function(app, config) {
-    if (!config) {
-        config = {
-            log: true
-        };
+var applyOverrides = function(from, to) {
+    for (var k in from) {
+        if (from.hasOwnProperty(k)) {
+            if (to.hasOwnProperty(k)) {
+                switch (typeof from[k]) {
+                    case 'number':
+                    case 'string':
+                    case 'boolean':
+                        to[k] = from[k];
+                        continue;
+                    default:
+                        console.log("unhandled: "+(typeof from[k]));
+                }
+                applyOverrides(from[k], to[k]);
+            }
+            else {
+                to[k] = from[k];
+            }
+        }
     }
-    if (config.log) {
+}
+
+var installFakeTsdb = function(app, incomingConfig) {
+    if (!incomingConfig) {
+        incomingConfig = {};
+    }
+
+    var conf = {
+        verbose: false,
+        logRequests: true,
+        probabilities: {
+            noData: 0.01,
+            missingPoint: 0.05
+        }
+    };
+
+    applyOverrides(incomingConfig, conf);
+
+    config = conf;
+
+    if (config.logRequests) {
 
         // middleware specific to this router
         router.use(function timeLog(req, res, next) {
@@ -583,7 +661,7 @@ module.exports = {
 
 // command line running
 if (require.main === module) {
-    var config = {
+    var conf = {
         port: 4242
     };
 
@@ -591,8 +669,18 @@ if (require.main === module) {
     for (var i=0; i<args.length; i++) {
         switch (args[i]) {
             case '-p':
-                config.port = args[++i];
+                conf.port = args[++i];
                 break;
+            case '-v':
+                conf.verbose = true;
+                break;
+            case '-?':
+            case '--help':
+                console.log("Usage: node faketsdb.js [options]");
+                console.log(" -p [port] : Specify the port to bind to")
+                console.log(" -v        : Verbose logging")
+                console.log(" -? --help : Show this help page")
+                return;
             default:
                 console.error("Unrecognised option: "+args[i]);
         }
@@ -613,7 +701,7 @@ if (require.main === module) {
     addTimeSeries("cpu.queue", { host: "host02" }, "gauge");
 
     var app = express();
-    installFakeTsdb(app);
+    installFakeTsdb(app, conf);
 
     var server = app.listen(config.port, function() {
         var host = server.address().address
