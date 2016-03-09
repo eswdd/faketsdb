@@ -12,3 +12,5 @@ notifications:
 before_install:
   - npm -g install npm@latest-2
   - "gem install --version 0.8.9 faraday"
+script: "npm run-script test-coverage"
+after_script: "cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
