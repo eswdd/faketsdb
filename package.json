@@ -4,6 +4,9 @@
   "description": "A fake implementation of OpenTSDB, generating random but repeatable datasets to aid offline testing of API consumers",
   "repository": "https://github.com/eswdd/faketsdb",
   "license": "GPL",
+  "keywords": [
+    "opentsdb"
+  ],
   "devDependencies": {
     "assert": "^1.3.0",
     "coveralls": "^2.11.8",
