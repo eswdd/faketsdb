@@ -11,13 +11,24 @@ Fake implementation of OpenTSDB API as an Express Router to aid in the developme
 
 Run standalone from the command line:
 
-    npm start -p 4242
+    npm start
+
+Or with options:
+
+    node faketsdb.js -p 4242 -v
 
 Or embed in an existing application using Express:
 
     var app = express();
-    var faketsdb = require('faketsdb')
-    faketsdb.installFakeTsdb(app);
+    var faketsdb = require('faketsdb');
+    // config optional, sensible defaults exist
+    var config = {
+        probabilities: {
+            noData: 0.1,
+            missingPoint: 0.1
+        }
+    };
+    faketsdb.installFakeTsdb(app, config);
 
     var server = app.listen(4242, function() {
         var host = server.address().address
