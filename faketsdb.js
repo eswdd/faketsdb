@@ -351,22 +351,25 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
         var tags = [];
         var openCurly = metricAndTags.indexOf("{");
         var closeCurly = metricAndTags.indexOf("}");
-        if (openCurly >= 0 && (closeCurly - openCurly)>1) {
+        if (openCurly >= 0) {
             metric = metricAndTags.substring(0, openCurly);
             var tagString = metricAndTags.substring(openCurly+1);
             tagString = tagString.substring(0, tagString.length-1);
 
-            var tagArray = tagString.split(",");
-            for (var t=0; t<tagArray.length; t++) {
-                var kv = tagArray[t].split("=");
-                if (kv[1].indexOf("*")>=0) {
-                    tags.push({tagk:kv[0],tagv:allTagValues(metric, kv[0])});
-                }
-                else if (kv[1].indexOf("|")>=0) {
-                    tags.push({tagk:kv[0],tagv:kv[1].split("|")});
-                }
-                else {
-                    tags.push({tagk:kv[0],tagv:[kv[1]]});
+            // some idiot specified the tag spec as {}
+            if (tagString != "") {
+                var tagArray = tagString.split(",");
+                for (var t=0; t<tagArray.length; t++) {
+                    var kv = tagArray[t].split("=");
+                    if (kv[1].indexOf("*")>=0) {
+                        tags.push({tagk:kv[0],tagv:allTagValues(metric, kv[0])});
+                    }
+                    else if (kv[1].indexOf("|")>=0) {
+                        tags.push({tagk:kv[0],tagv:kv[1].split("|")});
+                    }
+                    else {
+                        tags.push({tagk:kv[0],tagv:[kv[1]]});
+                    }
                 }
             }
         }

@@ -255,7 +255,7 @@ describe('Inline FakeTSDB', function () {
             .expect(function(res) {
                 var body = res.body;
                 if (body.length != 1) {
-                    return errorExpectedActual("expected returned metric count to be 0, not "+body.length, 0, body.length);
+                    return errorExpectedActual("expected returned metric count to be 1, not "+body.length, 1, body.length);
                 }
                 if (body[0].metric != "some.metric") {
                     return errorExpectedActual("expected returned metric to be some.metric, not "+body[0].metric, "some.metric", body[0].metric);
@@ -281,13 +281,39 @@ describe('Inline FakeTSDB', function () {
             .expect(function(res) {
                 var body = res.body;
                 if (body.length != 1) {
-                    return errorExpectedActual("expected returned metric count to be 0, not "+body.length, 0, body.length);
+                    return errorExpectedActual("expected returned metric count to be 1, not "+body.length, 1, body.length);
                 }
                 if (body[0].metric != "some.metric") {
                     return errorExpectedActual("expected returned metric to be some.metric, not "+body[0].metric, "some.metric", body[0].metric);
                 }
                 if (JSON.stringify(body[0].tags) != '{\"type\":"type1"}') {
                     return errorExpectedActual("expected returned tags to be {\"type\":\"type1\"}, not "+JSON.stringify(body[0].tags), "{\"type\":\"type1\"}", body[0].tags);
+                }
+                if (JSON.stringify(body[0].aggregatedTags) != '["host"]') {
+                    return errorExpectedActual("expected returned aggregated tags to be [\"host\"], not "+JSON.stringify(body[0].aggregatedTags), "[\"host\"]", body[0].aggregatedTags);
+                }
+            })
+            .end(done);
+    });
+
+    it('responds to GET  /api/query for an aggregated call with an empty tag string', function(done) {
+        faketsdb.addTimeSeries("some.metric", {"host":"host1"}, "gauge");
+        faketsdb.addTimeSeries("some.metric", {"host":"host2"}, "gauge");
+
+        request(server)
+            .get('/api/query?start=1m-ago&m=sum:10s-avg:some.metric{}&arrays=true')
+            .expect('Content-Type', /json/)
+            .expect(200)
+            .expect(function(res) {
+                var body = res.body;
+                if (body.length != 1) {
+                    return errorExpectedActual("expected returned metric count to be 1, not "+body.length, 1, body.length);
+                }
+                if (body[0].metric != "some.metric") {
+                    return errorExpectedActual("expected returned metric to be some.metric, not "+body[0].metric, "some.metric", body[0].metric);
+                }
+                if (JSON.stringify(body[0].tags) != '{}') {
+                    return errorExpectedActual("expected returned tags to be {}, not "+JSON.stringify(body[0].tags), "{}", body[0].tags);
                 }
                 if (JSON.stringify(body[0].aggregatedTags) != '["host"]') {
                     return errorExpectedActual("expected returned aggregated tags to be [\"host\"], not "+JSON.stringify(body[0].aggregatedTags), "[\"host\"]", body[0].aggregatedTags);
