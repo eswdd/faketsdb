@@ -30,5 +30,8 @@
     "seedrandom": "^2.4.2",
     "moment": "^2.11.2"
   },
-  "main": "faketsdb.js"
+  "main": "faketsdb.js",
+  "bin": {
+    "faketsdb": "faketsdb.js"
+  }
 }
