@@ -1,5 +1,5 @@
 {
-  "version": "0.1.9",
+  "version": "0.1.10",
   "name": "faketsdb",
   "description": "A fake implementation of OpenTSDB, generating random but repeatable datasets to aid offline testing of API consumers",
   "repository": "https://github.com/eswdd/faketsdb",
