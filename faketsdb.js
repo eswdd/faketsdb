@@ -91,7 +91,7 @@ var assignUidIfNecessary = function(type, name) {
 
 }
 
-var addTimeSeries = function(metric, tags, type) {
+var addTimeSeries = function(metric, tags, type, dataConstraints) {
     // see if exists
     for (var i=0; i<timeseries.length; i++) {
         var match = false;
@@ -121,8 +121,12 @@ var addTimeSeries = function(metric, tags, type) {
         }
     }
 
+    if (!dataConstraints) {
+        dataConstraints = {};
+    }
+
     // now can add
-    timeseries.push({metric: metric, tags: tags, type: type});
+    timeseries.push({metric: metric, tags: tags, type: type, constraints: dataConstraints});
 }
 
 var suggestImpl = function(req, res) {
@@ -467,12 +471,24 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
                         for (var t=firstTimeStamp; t<=endTimeNormalisedToReturnUnits; t+=downsampleNumberComponent) {
                             // chance of missing data point
                             if (rand() >= config.probabilities.missingPoint) {
-                                if (participatingTimeSeries[p].type=="counter" && participantData[p].length>0) {
-                                    participantData[p].push([t, participantData[p][participantData[p].length-1][1]+(rand()*100)]);
+                                var prevValue = participantData[p].length>0 ? participantData[p][participantData[p].length-1][1] : 0;
+                                var newValue = 0;
+                                switch (participatingTimeSeries[p].type) {
+                                    case "counter":
+                                        newValue = prevValue+(rand()*100);
+                                        break;
+                                    case "gauge":
+                                        var inc = (rand()-0.5)*20;
+                                        newValue = prevValue + inc;
+                                        if (participatingTimeSeries[p].constraints.hasOwnProperty("min")) {
+                                            newValue = Math.max(newValue, participatingTimeSeries[p].constraints.min);
+                                        }
+                                        if (participatingTimeSeries[p].constraints.hasOwnProperty("max")) {
+                                            newValue = Math.min(newValue, participatingTimeSeries[p].constraints.max);
+                                        }
+                                        break;
                                 }
-                                else {
-                                    participantData[p].push([t, rand()*100]);
-                                }
+                                participantData[p].push([t, newValue]);
 
                             }
                         }
