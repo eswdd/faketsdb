@@ -270,6 +270,34 @@ describe('Inline FakeTSDB', function () {
             .end(done);
     });
 
+    it('responds to GET  /api/query for ms data', function(done) {
+        faketsdb.addTimeSeries("some.metric", {"host":"host1"}, "gauge");
+
+        request(server)
+            .get('/api/query?start=1m-ago&m=sum:10s-avg:some.metric{host=host1}&arrays=true&ms=true')
+            .expect('Content-Type', /json/)
+            .expect(200)
+            .expect(function(res) {
+                var body = res.body;
+                if (body.length != 1) {
+                    return errorExpectedActual("expected returned metric count to be 1, not "+body.length, 1, body.length);
+                }
+                if (body[0].metric != "some.metric") {
+                    return errorExpectedActual("expected returned metric to be some.metric, not "+body[0].metric, "some.metric", body[0].metric);
+                }
+                if (JSON.stringify(body[0].tags) != '{\"host\":"host1"}') {
+                    return errorExpectedActual("expected returned tags to be {\"host\":\"host1\"}, not "+JSON.stringify(body[0].tags), "{\"host\":\"host1\"}", body[0].tags);
+                }
+                if (JSON.stringify(body[0].aggregatedTags) != '[]') {
+                    return errorExpectedActual("expected returned aggregated tags to be [], not "+JSON.stringify(body[0].aggregatedTags), "[]", body[0].aggregatedTags);
+                }
+                if (body[0].dps[0][0] < 10000000000) {
+                    return errorActual("expected return datapoints to have ms timestamps, but was seconds: "+body[0].dps[0][0], body[0].dps[0][0]);
+                }
+            })
+            .end(done);
+    });
+
     it('responds to GET  /api/query for an aggregated call', function(done) {
         faketsdb.addTimeSeries("some.metric", {"host":"host1","type":"type1"}, "gauge");
         faketsdb.addTimeSeries("some.metric", {"host":"host2","type":"type1"}, "gauge");

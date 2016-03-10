@@ -509,7 +509,7 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
                     }
                     var points = [];
                     for (var i=0; i<indices.length; i++) {
-                        while (participantData[i][indices[i]][0]<t && indices[i]<participantData[i].length) {
+                        while (indices[i]<participantData[i].length && participantData[i][indices[i]][0]<t) {
                             indices[i]++;
                         }
                         if (config.verbose) {
@@ -593,7 +593,7 @@ var queryGet = function(req, res) {
     var arrayResponse = queryParams["arrays"] && queryParams["arrays"]=="true";
     var mArray = queryParams["m"];
     mArray = [].concat( mArray );
-    queryImpl(queryParams["start"],queryParams["end"],mArray,arrayResponse,false,res);
+    queryImpl(queryParams["start"],queryParams["end"],mArray,arrayResponse,queryParams["ms"],res);
 }
 
 // all routes exist here so we know what's implemented
