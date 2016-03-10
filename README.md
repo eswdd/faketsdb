@@ -66,4 +66,4 @@ Faketsdb is freely distributable under the terms of the [GPL license](https://gi
 [travis-image]: http://img.shields.io/travis/eswdd/faketsdb/master.svg?style=flat
 
 [coverage-url]: https://coveralls.io/r/eswdd/faketsdb
-[coverage-image]: https://coveralls.io/repos/eswdd/faketsdb:/badge.svg
+[coverage-image]: https://coveralls.io/repos/github/eswdd/faketsdb/badge.svg
