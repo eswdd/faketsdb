@@ -308,7 +308,7 @@ var constructUniqueTagSetsInternal = function(tagsAndValueArrays, index, ret, cu
     }
 }
 
-var queryImpl = function(start, end, mArray, arrays, ms, res) {
+var queryImpl = function(start, end, mArray, arrays, ms, showQuery, res) {
     if (!start) {
         res.json("Missing start parameter");
         return;
@@ -375,6 +375,21 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
                         tags.push({tagk:kv[0],tagv:[kv[1]]});
                     }
                 }
+            }
+        }
+        var query = {};
+        if (showQuery) {
+            query.aggregator = aggregator;
+            query.metric = metric;
+            query.tsuids = null;
+            query.downsample = downsampled ? downsampled : null;
+            query.rate = rate;
+            query.explicitTags = false;
+            query.filters = []; // todo
+            query.rateOptions = null;
+            query.tags = {};
+            for (var t=0; t<tags.length; t++) {
+                query.tags[tags[t].tagk] = tags[t].tagv;
             }
         }
 
@@ -589,13 +604,19 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
                         combinedDps[t] = val;
                     }
                 }
-
-                ret.push({
+                
+                var toPush = {
                     "metric": metric,
                     "tags": tagsets[s],
                     "aggregatedTags": aggregateTags,
                     "dps": combinedDps
-                });
+                };
+                    
+                if (showQuery) {
+                    toPush.query = query;
+                }
+
+                ret.push(toPush);
             }
         }
 
@@ -607,9 +628,10 @@ var queryImpl = function(start, end, mArray, arrays, ms, res) {
 var queryGet = function(req, res) {
     var queryParams = req.query;
     var arrayResponse = queryParams["arrays"] && queryParams["arrays"]=="true";
+    var showQuery = queryParams["show_query"] && queryParams["show_query"]=="true";
     var mArray = queryParams["m"];
     mArray = [].concat( mArray );
-    queryImpl(queryParams["start"],queryParams["end"],mArray,arrayResponse,queryParams["ms"],res);
+    queryImpl(queryParams["start"],queryParams["end"],mArray,arrayResponse,queryParams["ms"],showQuery,res);
 }
 
 // all routes exist here so we know what's implemented
