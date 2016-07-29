@@ -154,6 +154,16 @@ var aggregatorsImpl = function(req, res) {
     res.json(["avg","sum","min","max"]);
 }
 
+var tsuid = function(metric, tags) {
+    var ret = uid("metric", metric);
+    for (var k in tags) {
+        if (tags.hasOwnProperty(k)) {
+            ret += uid("tagk", k) + uid("tagv", tags[k]);
+        }
+    }
+    return ret;
+}
+
 var searchLookupImpl = function(metric, limit, useMeta, res) {
     var ret = {
         "type": "LOOKUP",
@@ -166,16 +176,11 @@ var searchLookupImpl = function(metric, limit, useMeta, res) {
     };
     for (var i=0; i<timeseries.length; i++) {
         if (timeseries[i].metric == metric) {
-            var tsuid = uid("metric", metric);
-            for (var k in timeseries[i].tags) {
-                if (timeseries[i].tags.hasOwnProperty(k)) {
-                    tsuid += uid("tagk", k) + uid("tagv", timeseries[i].tags[k]);
-                }
-            }
+            var uid = tsuid(metric, timeseries[i].tags);
             var ts = {
                 metric: metric,
                 tags: timeseries[i].tags,
-                tsuid: tsuid
+                tsuid: uid
             };
             ret.results.push(ts);
         }
@@ -308,7 +313,7 @@ var constructUniqueTagSetsInternal = function(tagsAndValueArrays, index, ret, cu
     }
 }
 
-var queryImpl = function(start, end, mArray, arrays, ms, showQuery, res) {
+var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations, globalAnnotations, res) {
     if (!start) {
         res.json("Missing start parameter");
         return;
@@ -330,6 +335,34 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, res) {
     var rand = new Math.seedrandom(seed);
 
     var ret = [];
+    
+    var globalAnnotationsArray = [];
+    if (globalAnnotations) {
+        // populate some global annotations
+        var from = startTime.getTime();
+        var to = endTime.getTime();
+        for (var t=from; t<to; ) {
+            if (rand() <= config.probabilities.globalAnnotation) {
+                var ann = {
+                    "description": "Notice",
+                    "notes": "DAL was down during this period",
+                    "custom": null,
+                    "endTime": t+((to-from)/20),
+                    "startTime": t
+                };
+                globalAnnotationsArray.push(ann);
+            }
+            
+            // next time
+            var inc = rand() * ((to-from)/3);
+            inc += "";
+            if (inc.indexOf(".") > -1) {
+                inc = inc.substring(0, inc.indexOf("."));
+            }
+            
+            t += parseInt(inc);
+        }
+    }
 
     // m=<aggregator>:[rate[{counter[,<counter_max>[,<reset_value>]]]}:][<down_sampler>:]<metric_name>[{<tag_name1>=<grouping filter>[,...<tag_nameN>=<grouping_filter>]}][{<tag_name1>=<non grouping filter>[,...<tag_nameN>=<non_grouping_filter>]}]
     for (var a=0; a<mArray.length; a++) {
@@ -470,6 +503,7 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, res) {
             }
 
             if (participatingTimeSeries.length > 0) {
+                var annotationsArray = [];
                 // now generate some data
                 var participantData = new Array(participatingTimeSeries.length);
                 for (var p=0; p<participatingTimeSeries.length; p++) {
@@ -505,6 +539,22 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, res) {
                                 }
                                 participantData[p].push([t, newValue]);
 
+                            }
+                            // chance of inserting an annotation where there's no data point
+                            if (rand() <= config.probabilities.annotation) {
+                                var uid = tsuid(participatingTimeSeries[p].metric, participatingTimeSeries[p].tags);
+                                var ann = {
+                                    "tsuid": uid,
+                                    "description": "Testing Annotations",
+                                    "notes": "These would be details about the event, the description is just a summary",
+                                    "custom": {
+                                        "owner": "jdoe",
+                                        "dept": "ops"
+                                    },
+                                    "endTime": 0,
+                                    "startTime": t
+                                };
+                                annotationsArray.push(ann);
                             }
                         }
                     }
@@ -615,6 +665,14 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, res) {
                 if (showQuery) {
                     toPush.query = query;
                 }
+                
+                if (annotations) {
+                    toPush.annotations = annotationsArray;
+                }
+                
+                if (globalAnnotations) {
+                    toPush.globalAnnotations = globalAnnotationsArray;
+                }
 
                 ret.push(toPush);
             }
@@ -629,9 +687,11 @@ var queryGet = function(req, res) {
     var queryParams = req.query;
     var arrayResponse = queryParams["arrays"] && queryParams["arrays"]=="true";
     var showQuery = queryParams["show_query"] && queryParams["show_query"]=="true";
+    var showAnnotations = !(queryParams["no_annotations"] && queryParams["no_annotations"]=="true");
+    var globalAnnotations = queryParams["global_annotations"] && queryParams["global_annotations"]=="true";
     var mArray = queryParams["m"];
     mArray = [].concat( mArray );
-    queryImpl(queryParams["start"],queryParams["end"],mArray,arrayResponse,queryParams["ms"],showQuery,res);
+    queryImpl(queryParams["start"],queryParams["end"],mArray,arrayResponse,queryParams["ms"],showQuery,showAnnotations,globalAnnotations,res);
 }
 
 // all routes exist here so we know what's implemented
@@ -675,7 +735,9 @@ var installFakeTsdb = function(app, incomingConfig) {
         logRequests: true,
         probabilities: {
             noData: 0.01,
-            missingPoint: 0.05
+            missingPoint: 0.05,
+            annotation: 0.005,
+            globalAnnotation: 0.5
         }
     };
 
