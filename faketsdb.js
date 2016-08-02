@@ -540,6 +540,9 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations,
                                 participantData[p].push([t, newValue]);
 
                             }
+                            else if (config.verbose) {
+                                console.log("Missing datapoint at "+t);
+                            }
                             // chance of inserting an annotation where there's no data point
                             if (rand() <= config.probabilities.annotation) {
                                 var uid = tsuid(participatingTimeSeries[p].metric, participatingTimeSeries[p].tags);
@@ -593,36 +596,38 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations,
                         while (indices[i]<participantData[i].length && participantData[i][indices[i]][0]<t) {
                             indices[i]++;
                         }
-                        if (config.verbose) {
-                            console.log("     indices["+i+"] = "+JSON.stringify(indices[i]));
-                        }
-                        if (indices[i]<participantData[i].length) {
-                            if (participantData[i][indices[i]][0]==t) {
-                                if (config.verbose) {
-                                    console.log("     a");
-                                }
-                                points.push(participantData[i][indices[i]][1]);
+                        if (indices[i]<participantData[i].length && participantData[i][indices[i]][0] == t) {
+                            if (config.verbose) {
+                                console.log("     indices["+i+"] = "+JSON.stringify(indices[i]));
                             }
-                            else { // next dp time is greater than time desired
-                                if (config.verbose) {
-                                    console.log("     b");
-                                }
-                                // can't interpolate from before beginning
-                                if (indices[i]>0) {
+                            if (indices[i]<participantData[i].length) {
+                                if (participantData[i][indices[i]][0]==t) {
                                     if (config.verbose) {
-                                        console.log("     c");
+                                        console.log("     a");
                                     }
-                                    var gapSizeTime = participantData[i][indices[i]][0] - participantData[i][indices[i]-1][0];
-                                    var gapDiff = participantData[i][indices[i]][1] - participantData[i][indices[i]-1][1];
-
-                                    var datumToNow = t - participantData[i][indices[i]-1][0];
-                                    var datumToNowRatio = datumToNow / gapSizeTime;
-
-                                    var gapDiffMultRatio = datumToNowRatio * gapDiff;
-                                    var newVal = participantData[i][indices[i]-1][1] + gapDiffMultRatio;
-                                    points.push(newVal);
+                                    points.push(participantData[i][indices[i]][1]);
                                 }
-
+                                else { // next dp time is greater than time desired
+                                    if (config.verbose) {
+                                        console.log("     b");
+                                    }
+                                    // can't interpolate from before beginning
+                                    if (indices[i]>0) {
+                                        if (config.verbose) {
+                                            console.log("     c");
+                                        }
+                                        var gapSizeTime = participantData[i][indices[i]][0] - participantData[i][indices[i]-1][0];
+                                        var gapDiff = participantData[i][indices[i]][1] - participantData[i][indices[i]-1][1];
+    
+                                        var datumToNow = t - participantData[i][indices[i]-1][0];
+                                        var datumToNowRatio = datumToNow / gapSizeTime;
+    
+                                        var gapDiffMultRatio = datumToNowRatio * gapDiff;
+                                        var newVal = participantData[i][indices[i]-1][1] + gapDiffMultRatio;
+                                        points.push(newVal);
+                                    }
+    
+                                }
                             }
                         }
                     }
@@ -630,28 +635,29 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations,
                         console.log("      For time "+t+", partipating points = "+JSON.stringify(points));
                     }
                     // now we have our data points, combine them:
-                    var val;
-                    switch (aggregator) {
-                        case "sum":
-                            val = sum(points);
-                            break;
-                        case "avg":
-                            val = sum(points)/participantData.length;
-                            break;
-                        case "min":
-                            val = sum(points);
-                            break;
-                        case "max":
-                            val = sum(points);
-                            break;
-                        default:
-                            throw "unrecognized agg: "+aggregator;
-                    }
-                    if (arrays) {
-                        combinedDps.push([t,val]);
-                    }
-                    else {
-                        combinedDps[t] = val;
+                    if (points.length > 0) {
+                        switch (aggregator) {
+                            case "sum":
+                                val = sum(points);
+                                break;
+                            case "avg":
+                                val = sum(points)/participantData.length;
+                                break;
+                            case "min":
+                                val = sum(points);
+                                break;
+                            case "max":
+                                val = sum(points);
+                                break;
+                            default:
+                                throw "unrecognized agg: "+aggregator;
+                        }
+                        if (arrays) {
+                            combinedDps.push([t,val]);
+                        }
+                        else {
+                            combinedDps[t] = val;
+                        }
                     }
                 }
                 
