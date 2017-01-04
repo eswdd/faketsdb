@@ -5,7 +5,9 @@ router.use(bodyParser.json());
 require('seedrandom');
 var moment = require('moment');
 
-var config = {};
+var config = {
+    
+};
 
 var metrics = [
 ];
@@ -77,7 +79,7 @@ var assignUidIfNecessary = function(type, name) {
 
     for (var i=0; i<arr.length; i++) {
         if (arr[i].name == name) {
-            return; // nothing to do
+            return arr[i].uid; // nothing to do
         }
     }
 
@@ -88,7 +90,7 @@ var assignUidIfNecessary = function(type, name) {
     }
     arr.push({name: name, uid: nextUid, created: new Date().getTime()/1000});
 
-
+    return nextUid;
 }
 
 var addTimeSeries = function(metric, tags, type, dataConstraints) {
@@ -113,11 +115,12 @@ var addTimeSeries = function(metric, tags, type, dataConstraints) {
     }
 
     // assign uids if needed
-    assignUidIfNecessary("metric", metric);
+    var tsuid = "";
+    tsuid += assignUidIfNecessary("metric", metric);
     for (var tagk in tags) {
         if (tags.hasOwnProperty(tagk)) {
-            assignUidIfNecessary("tagk", tagk);
-            assignUidIfNecessary("tagv", tags[tagk]);
+            tsuid += assignUidIfNecessary("tagk", tagk);
+            tsuid += assignUidIfNecessary("tagv", tags[tagk]);
         }
     }
 
@@ -126,7 +129,7 @@ var addTimeSeries = function(metric, tags, type, dataConstraints) {
     }
 
     // now can add
-    timeseries.push({metric: metric, tags: tags, type: type, constraints: dataConstraints});
+    timeseries.push({metric: metric, tags: tags, type: type, constraints: dataConstraints, tsuid: tsuid});
 }
 
 var suggestImpl = function(req, res) {
@@ -162,6 +165,18 @@ var tsuid = function(metric, tags) {
         }
     }
     return ret;
+}
+
+var annotationPostImpl = function(req, res) {
+    res.json(req.body);
+}
+
+var annotationDeleteImpl = function(req, res) {
+    res.json(req.body);
+}
+
+var annotationBulkPostImpl = function(req, res) {
+    res.json(req.body);
 }
 
 var searchLookupImpl = function(metric, limit, useMeta, res) {
@@ -313,7 +328,7 @@ var constructUniqueTagSetsInternal = function(tagsAndValueArrays, index, ret, cu
     }
 }
 
-var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations, globalAnnotations, res) {
+var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations, globalAnnotations, showTsuids, res) {
     if (!start) {
         res.json("Missing start parameter");
         return;
@@ -418,11 +433,13 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations,
             query.downsample = downsampled ? downsampled : null;
             query.rate = rate;
             query.explicitTags = false;
-            query.filters = []; // todo
             query.rateOptions = null;
             query.tags = {};
+            query.filters = []; // todo
             for (var t=0; t<tags.length; t++) {
                 query.tags[tags[t].tagk] = tags[t].tagv;
+                var isWildcard = tags[t].tagv.indexOf("*") >= 0;
+                query.filters.push({tagk:tags[t].tagk,type:(isWildcard?"wildcard":"literal_or"),filter:tags[t].tagv,group_by:true});
             }
         }
 
@@ -504,9 +521,11 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations,
 
             if (participatingTimeSeries.length > 0) {
                 var annotationsArray = [];
+                var tsuids = [];
                 // now generate some data
                 var participantData = new Array(participatingTimeSeries.length);
                 for (var p=0; p<participatingTimeSeries.length; p++) {
+                    tsuids.push(participatingTimeSeries[p].tsuid);
                     participantData[p] = [];
                     // chance of no data at all!
                     if (rand() >= config.probabilities.noData) {
@@ -679,6 +698,10 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations,
                 if (globalAnnotations) {
                     toPush.globalAnnotations = globalAnnotationsArray;
                 }
+                
+                if (showTsuids) {
+                    toPush.tsuids = tsuids;
+                }
 
                 ret.push(toPush);
             }
@@ -689,15 +712,34 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations,
 
     res.json(ret);
 }
+
 var queryGet = function(req, res) {
     var queryParams = req.query;
     var arrayResponse = queryParams["arrays"] && queryParams["arrays"]=="true";
     var showQuery = queryParams["show_query"] && queryParams["show_query"]=="true";
+    var showTsuids = queryParams["show_tsuids"] && queryParams["show_tsuids"]=="true";
     var showAnnotations = !(queryParams["no_annotations"] && queryParams["no_annotations"]=="true");
     var globalAnnotations = queryParams["global_annotations"] && queryParams["global_annotations"]=="true";
     var mArray = queryParams["m"];
     mArray = [].concat( mArray );
-    queryImpl(queryParams["start"],queryParams["end"],mArray,arrayResponse,queryParams["ms"],showQuery,showAnnotations,globalAnnotations,res);
+    queryImpl(queryParams["start"],queryParams["end"],mArray,arrayResponse,queryParams["ms"],showQuery,showAnnotations,globalAnnotations,showTsuids,res);
+}
+
+var versionGet = function(req, res) {
+    res.json({
+        "timestamp": "1362712695",
+        "host": "localhost",
+        "repo": "/opt/opentsdb/build",
+        "full_revision": "11c5eefd79f0c800b703ebd29c10e7f924c01572",
+        "short_revision": "11c5eef",
+        "user": "localuser",
+        "repo_status": "MODIFIED",
+        "version": config.version
+    });
+}
+
+var configGet = function(req, res) {
+    res.json({});
 }
 
 // all routes exist here so we know what's implemented
@@ -706,7 +748,13 @@ router.get('/aggregators', aggregatorsImpl);
 router.post('/aggregators', aggregatorsImpl);
 router.get('/search/lookup', searchLookupGet);
 router.post('/search/lookup', bodyParser.json(), searchLookupPost);
+router.post('/annotation', annotationPostImpl);
+router.delete('/annotation', annotationDeleteImpl);
+router.post('/annotation/bulk', annotationBulkPostImpl);
 router.get('/query', queryGet);
+router.get('/version', versionGet);
+router.post('/version', versionGet);
+router.get('/config', configGet);
 router.get('/uid/uidmeta', uidMetaGet);
 
 var applyOverrides = function(from, to) {
@@ -744,7 +792,8 @@ var installFakeTsdb = function(app, incomingConfig) {
             missingPoint: 0.05,
             annotation: 0.005,
             globalAnnotation: 0.5
-        }
+        },
+        version: "2.2.0"
     };
 
     applyOverrides(incomingConfig, conf);
