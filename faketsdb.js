@@ -9,31 +9,26 @@ var config = {
     
 };
 
-var metrics = [
-];
+var fakeBackend = {
+    metrics: [],
+    tagks: [],
+    tagvs: [],
+    timeseries: []
+};
 
-var tagks = [
-]
+fakeBackend.resetAllState = function() {
+    fakeBackend.timeseries = [];
+    fakeBackend.metrics = [];
+    fakeBackend.tagks = [];
+    fakeBackend.tagvs = [];
+};
 
-var tagvs = [
-];
-
-var timeseries = [
-];
-
-var resetAllState = function() {
-    timeseries = [];
-    metrics = [];
-    tagks = [];
-    tagvs = [];
-}
-
-var uidMetaFromName = function(type, name) {
+fakeBackend.uidMetaFromName = function(type, name) {
     var arr = [];
     switch (type) {
-        case "metric": arr = metrics; break;
-        case "tagk": arr = tagks; break;
-        case "tagv": arr = tagvs; break;
+        case "metric": arr = fakeBackend.metrics; break;
+        case "tagk": arr = fakeBackend.tagks; break;
+        case "tagv": arr = fakeBackend.tagvs; break;
         default: throw 'Unsupported type: '+type;
     }
     for (var i=0; i<arr.length; i++) {
@@ -44,12 +39,12 @@ var uidMetaFromName = function(type, name) {
     return null;
 }
 
-var uidMetaFromUid = function(type, uid) {
+fakeBackend.uidMetaFromUid = function(type, uid) {
     var arr = [];
     switch (type) {
-        case "metric": arr = metrics; break;
-        case "tagk": arr = tagks; break;
-        case "tagv": arr = tagvs; break;
+        case "metric": arr = fakeBackend.metrics; break;
+        case "tagk": arr = fakeBackend.tagks; break;
+        case "tagv": arr = fakeBackend.tagvs; break;
         default: throw 'Unsupported type: '+type;
     }
     for (var i=0; i<arr.length; i++) {
@@ -60,20 +55,12 @@ var uidMetaFromUid = function(type, uid) {
     return null;
 }
 
-var uid = function(type, name) {
-    var meta = uidMetaFromName(type, name);
-    if (meta != null) {
-        return meta.uid;
-    }
-    return null;
-}
-
-var assignUidIfNecessary = function(type, name) {
+fakeBackend.assignUidIfNecessary = function(type, name) {
     var arr = [];
     switch (type) {
-        case "metric": arr = metrics; break;
-        case "tagk": arr = tagks; break;
-        case "tagv": arr = tagvs; break;
+        case "metric": arr = fakeBackend.metrics; break;
+        case "tagk": arr = fakeBackend.tagks; break;
+        case "tagv": arr = fakeBackend.tagvs; break;
         default: throw 'Unsupported type: '+type;
     }
 
@@ -91,17 +78,17 @@ var assignUidIfNecessary = function(type, name) {
     arr.push({name: name, uid: nextUid, created: new Date().getTime()/1000});
 
     return nextUid;
-}
+};
 
-var addTimeSeries = function(metric, tags, type, dataConstraints) {
+fakeBackend.addTimeSeries = function(metric, tags, type, dataConstraints) {
     // see if exists
-    for (var i=0; i<timeseries.length; i++) {
+    for (var i=0; i<fakeBackend.timeseries.length; i++) {
         var match = false;
-        if (timeseries[i].metric == metric) {
+        if (fakeBackend.timeseries[i].metric == metric) {
             match = true;
             for (var k1 in tags) {
-                if (tags.hasOwnProperty(k1) && timeseries[i].tags.hasOwnProperty(k1)) {
-                    if (tags[k1] != timeseries[i].tags[k1]) {
+                if (tags.hasOwnProperty(k1) && fakeBackend.timeseries[i].tags.hasOwnProperty(k1)) {
+                    if (tags[k1] != fakeBackend.timeseries[i].tags[k1]) {
                         match = false;
                         break;
                     }
@@ -116,11 +103,11 @@ var addTimeSeries = function(metric, tags, type, dataConstraints) {
 
     // assign uids if needed
     var tsuid = "";
-    tsuid += assignUidIfNecessary("metric", metric);
+    tsuid += fakeBackend.assignUidIfNecessary("metric", metric);
     for (var tagk in tags) {
         if (tags.hasOwnProperty(tagk)) {
-            tsuid += assignUidIfNecessary("tagk", tagk);
-            tsuid += assignUidIfNecessary("tagv", tags[tagk]);
+            tsuid += fakeBackend.assignUidIfNecessary("tagk", tagk);
+            tsuid += fakeBackend.assignUidIfNecessary("tagv", tags[tagk]);
         }
     }
 
@@ -129,20 +116,20 @@ var addTimeSeries = function(metric, tags, type, dataConstraints) {
     }
 
     // now can add
-    timeseries.push({metric: metric, tags: tags, type: type, constraints: dataConstraints, tsuid: tsuid});
+    fakeBackend.timeseries.push({metric: metric, tags: tags, type: type, constraints: dataConstraints, tsuid: tsuid});
 }
 
-var suggestImpl = function(req, res) {
+fakeBackend.suggestImpl = function(req, res) {
     var queryParams = req.query;
     if (queryParams["type"] == "metrics") {
         if (!queryParams["q"] || queryParams["q"] == "") {
-            res.json(metrics.map(function(m) {return m.name}));
+            res.json(fakeBackend.metrics.map(function(m) {return m.name}));
         }
         else {
             var ret = [];
-            for (var i=0; i<metrics.length; i++) {
-                if (metrics[i].name.indexOf(queryParams["q"])==0) {
-                    ret.push(metrics[i].name);
+            for (var i=0; i<fakeBackend.metrics.length; i++) {
+                if (fakeBackend.metrics[i].name.indexOf(queryParams["q"])==0) {
+                    ret.push(fakeBackend.metrics[i].name);
                 }
             }
             res.json(ret);
@@ -150,6 +137,236 @@ var suggestImpl = function(req, res) {
         return;
     }
     throw 'unhandled response';
+};
+
+fakeBackend.searchLookupImpl = function(metric, limit, useMeta, res) {
+    var ret = {
+        "type": "LOOKUP",
+        "metric": metric,
+        "limit": limit,
+        "time": 1,
+        "results": [],
+        "startIndex": 0,
+        "totalResults": 0
+    };
+    for (var i=0; i<fakeBackend.timeseries.length; i++) {
+        if (fakeBackend.timeseries[i].metric == metric) {
+            var uid = tsuid(metric, fakeBackend.timeseries[i].tags);
+            var ts = {
+                metric: metric,
+                tags: fakeBackend.timeseries[i].tags,
+                tsuid: uid
+            };
+            ret.results.push(ts);
+        }
+    }
+    ret.totalResults = ret.results.length;
+    res.json(ret);
+};
+
+fakeBackend.allTagValues = function(metric, tagk) {
+    var ret = [];
+    for (var t=0; t<fakeBackend.timeseries.length; t++) {
+        if (fakeBackend.timeseries[t].metric == metric) {
+            if (fakeBackend.timeseries[t].tags.hasOwnProperty(tagk)) {
+                if (ret.indexOf(fakeBackend.timeseries[t].tags[tagk]) < 0) {
+                    ret.push(fakeBackend.timeseries[t].tags[tagk]);
+                }
+            }
+        }
+    }
+    return ret;
+};
+
+fakeBackend.performAnnotationsQueries = function(startTime, endTime, participatingTimeSeries) {
+    var annotationsArray = [];
+
+    var seed = startTime + (endTime ? endTime : "");
+    var rand = new Math.seedrandom(seed);
+
+    // chance of inserting an annotation where there's no data point
+    if (rand() <= config.probabilities.annotation) {
+        var uid = participatingTimeSeries[p].ts_uid;
+        var ann = {
+            "tsuid": uid,
+            "description": "Testing Annotations",
+            "notes": "These would be details about the event, the description is just a summary",
+            "custom": {
+                "owner": "jdoe",
+                "dept": "ops"
+            },
+            "endTime": 0,
+            "startTime": t
+        };
+        annotationsArray.push(ann);
+    }
+
+    return annotationsArray;
+}
+
+/**
+ * Loads time series data for the given query, applies pre-query filtering where possible
+ * @param startTime DateTime
+ * @param endTime DateTime
+ * @param ms Boolean
+ * @param downsample String
+ * @param metric String
+ * @param filters Array of {tagk:String,type:String,filter:[String],group_by:Boolean}
+ * @returns Array of {
+ *                     metric:String,
+ *                     metric_uid:String,
+ *                     tags: { tagk: { tagk:String, tagk_uid:String, tagv:String, tagv_uid:String} }
+ *                     dps: [ [ timestamp:Number, value:Number ] ]
+ *                   }
+ */
+fakeBackend.performBackendQueries = function(startTime, endTime, ms, downsample, metric, filters) {
+    /*
+    var rawTimeSeries = [
+        {
+            metric: "metric",
+            metric_uid: "001",
+            ts_uid: "001001001",
+            tags: {
+                "tag1": { tagk: "tag1", tagk_uid: "001", tagv: "value1", tagv_uid: "001" }
+            },
+            dps: [
+                [ 1002020020, 1.4 ],
+                [ 1002020021, 1.5 ]
+            ]
+        }
+    ];*/
+
+
+    /*
+     addTimeSeries("tsd.rpc.received", { host: "host01", type: "put" }, "counter");
+     addTimeSeries("tsd.rpc.received", { host: "host01", type: "telnet" }, "counter");
+     addTimeSeries("tsd.rpc.errors", { host: "host01", type: "invalid_values" }, "counter");
+     addTimeSeries("tsd.rpc.errors", { host: "host01", type: "hbase_errors" }, "counter");
+     addTimeSeries("tsd.rpc.errors", { host: "host01", type: "illegal_arguments" }, "counter");
+     addTimeSeries("ifstat.bytes", { host: "host01", direction: "in" }, "counter");
+     addTimeSeries("ifstat.bytes", { host: "host01", direction: "out" }, "counter");
+     addTimeSeries("ifstat.bytes", { host: "host02", direction: "in" }, "counter");
+     addTimeSeries("ifstat.bytes", { host: "host02", direction: "out" }, "counter");
+     addTimeSeries("cpu.percent", { host: "host01" }, "gauge");
+     addTimeSeries("cpu.percent", { host: "host02" }, "gauge");
+     addTimeSeries("cpu.queue", { host: "host01" }, "gauge");
+     addTimeSeries("cpu.queue", { host: "host02" }, "gauge");
+     */
+
+    var seed = startTime + (endTime ? endTime : "");
+    var rand = new Math.seedrandom(seed);
+
+    var downsampleNumberComponent = downsample ? downsample.match(/^[0-9]+/) : 10;
+    var downsampleStringComponent = downsample ? downsample.split("-")[0].match(/[a-zA-Z]+$/)[0] : "s";
+    var msMultiplier = ms ? 1000 : 1;
+    switch (downsampleStringComponent) {
+        case 's': downsampleNumberComponent *= 1 * msMultiplier; break;
+        case 'm': downsampleNumberComponent *= 60 * msMultiplier; break;
+        case 'h': downsampleNumberComponent *= 3600 * msMultiplier; break;
+        case 'd': downsampleNumberComponent *= 86400 * msMultiplier; break;
+        case 'w': downsampleNumberComponent *= 7 * 86400 * msMultiplier; break;
+        case 'y': downsampleNumberComponent *= 365 * 86400 * msMultiplier; break;
+        default:
+            if (config.verbose) {
+                console.log("unrecognized downsample unit: "+downsampleStringComponent);
+            }
+    }
+
+
+    var startTimeNormalisedToReturnUnits = ms ? startTime.getTime() : startTime.getTime() / 1000;
+    var endTimeNormalisedToReturnUnits = ms ? endTime.getTime() : endTime.getTime() / 1000;
+
+    var participatingTimeSeries = [];
+    for (var p=0; p<fakeBackend.timeseries.length; p++) {
+        if (fakeBackend.timeseries[p].metric == metric) {
+            if (config.verbose) {
+                console.log("    Participant: "+t);
+            }
+            var metric_uid = uid("metric", metric);
+            var ts_uid = metric_uid;
+            var tags = {};
+            for (var k in fakeBackend.timeseries[p].tags) {
+                if (fakeBackend.timeseries[p].tags.hasOwnProperty(k)) {
+                    var v = fakeBackend.timeseries[p].tags[k];
+                    var tag = { tagk: k, tagk_uid: uid("tagk", k), tagv: v, tagv_uid: uid("tagv", v) };
+                    ts_uid += tag.tagk_uid + tag.tagv_uid;
+                    tags[k] = tag;
+                }
+            }
+            var dps = [];
+
+            // chance of no data at all!
+            if (rand() >= config.probabilities.noData) {
+                var firstTimeStamp = startTimeNormalisedToReturnUnits % downsampleNumberComponent == 0 ? startTimeNormalisedToReturnUnits :
+                    Math.floor((startTimeNormalisedToReturnUnits + downsampleNumberComponent) / downsampleNumberComponent) * downsampleNumberComponent;
+
+                if (config.verbose) {
+                    console.log("Generating data for p="+p+", starting from "+firstTimeStamp);
+                }
+
+                for (var t=firstTimeStamp; t<=endTimeNormalisedToReturnUnits; t+=downsampleNumberComponent) {
+                    // chance of missing data point
+                    if (rand() >= config.probabilities.missingPoint) {
+                        var prevValue = dps.length>0 ? dps[dps.length-1][1] : 0;
+                        var newValue = 0;
+                        switch (fakeBackend.timeseries[p].type) {
+                            case "counter":
+                                newValue = prevValue+(rand()*100);
+                                break;
+                            case "gauge":
+                                var inc = (rand()-0.5)*20;
+                                newValue = prevValue + inc;
+                                if (fakeBackend.timeseries[p].constraints.hasOwnProperty("min")) {
+                                    newValue = Math.max(newValue, fakeBackend.timeseries[p].constraints.min);
+                                }
+                                if (fakeBackend.timeseries[p].constraints.hasOwnProperty("max")) {
+                                    newValue = Math.min(newValue, fakeBackend.timeseries[p].constraints.max);
+                                }
+                                break;
+                        }
+                        dps.push([t, newValue]);
+
+                    }
+                    else if (config.verbose) {
+                        console.log("Missing datapoint at "+t);
+                    }
+                }
+            }
+            else {
+                if (config.verbose) {
+                    console.log("excluded as within 10%");
+                }
+            }
+            var ts = {
+                ts_uid: ts_uid,
+                metric: metric,
+                metric_uid: metric_uid,
+                tags: tags,
+                dps: dps
+            };
+            participatingTimeSeries.push(ts);
+        }
+    }
+
+    // uidMetaFromName
+
+    return participatingTimeSeries;
+}
+
+var backend = fakeBackend;
+// public interface:
+//   uidMetaFromName = function(type, name)
+//   backend.uidMetaFromUid(queryParams["type"], queryParams["uid"]);
+//   backend.searchLookupImpl(req.body.metric, req.body.limit, req.body.useMeta,res);
+//   backend.performBackendQueries(startTime, endTime, ms, downsampled, metric, filters);
+//   backend.performAnnotationsQueries(startTime, endTime, participatingTimeSeries);
+
+var uid = function(type, name) {
+    var meta = backend.uidMetaFromName(type, name);
+    if (meta != null) {
+        return meta.uid;
+    }
+    return null;
 }
 
 var aggregatorsImpl = function(req, res) {
@@ -178,43 +395,18 @@ var annotationDeleteImpl = function(req, res) {
 var annotationBulkPostImpl = function(req, res) {
     res.json(req.body);
 }
-
-var searchLookupImpl = function(metric, limit, useMeta, res) {
-    var ret = {
-        "type": "LOOKUP",
-        "metric": metric,
-        "limit": limit,
-        "time": 1,
-        "results": [],
-        "startIndex": 0,
-        "totalResults": 0
-    };
-    for (var i=0; i<timeseries.length; i++) {
-        if (timeseries[i].metric == metric) {
-            var uid = tsuid(metric, timeseries[i].tags);
-            var ts = {
-                metric: metric,
-                tags: timeseries[i].tags,
-                tsuid: uid
-            };
-            ret.results.push(ts);
-        }
-    }
-    ret.totalResults = ret.results.length;
-    res.json(ret);
-};
 var searchLookupPost = function(req, res) {
-    searchLookupImpl(req.body.metric, req.body.limit, req.body.useMeta,res);
+    backend.searchLookupImpl(req.body.metric, req.body.limit, req.body.useMeta,res);
 }
 var searchLookupGet = function(req, res) {
     var queryParams = req.query;
-    searchLookupImpl(queryParams["m"],queryParams["limit"],queryParams["use_meta"],res);
+    backend.searchLookupImpl(queryParams["m"],queryParams["limit"],queryParams["use_meta"],res);
 }
 
 var uidMetaGet = function(req, res) {
     var queryParams = req.query;
 
-    var meta = uidMetaFromUid(queryParams["type"], queryParams["uid"]);
+    var meta = backend.uidMetaFromUid(queryParams["type"], queryParams["uid"]);
     if (meta != null) {
         res.json({
             uid: meta.uid,
@@ -230,20 +422,6 @@ var uidMetaGet = function(req, res) {
         });
     }
 
-}
-
-var allTagValues = function(metric, tagk) {
-    var ret = [];
-    for (var t=0; t<timeseries.length; t++) {
-        if (timeseries[t].metric == metric) {
-            if (timeseries[t].tags.hasOwnProperty(tagk)) {
-                if (ret.indexOf(timeseries[t].tags[tagk]) < 0) {
-                    ret.push(timeseries[t].tags[tagk]);
-                }
-            }
-        }
-    }
-    return ret;
 }
 
 var toDateTime = function(tsdbTime) {
@@ -301,31 +479,178 @@ var max = function(arr) {
     return ret;
 }
 
-var constructUniqueTagSets = function(tagsAndValueArrays) {
+
+
+/**
+ * Strips out time series which don't match the filters (for those filters which can only be applied post-query)
+ * @param rawTimeSeries Array of {
+ *                        metric:String,
+  *                       metric_uid:String,
+ *                        tags: { tagk: { tagk:String, tagk_uid:String, tagv:String, tagv_uid:String} }
+ *                        dps: [ [ timestamp:Number, value:Number ] ]
+ *                      }
+ * @param filters Array of {tagk:String,type:String,filter:[String],group_by:Boolean}
+ */
+var postBackendFiltering = function(rawTimeSeries, filters) {
+    // apply 
+    for (var f=0; f<filters.length; f++) {
+        var filter = filters[f];
+        var fn = null;
+        var ignoreCase = false;
+        var negate = false;
+        if (filter.type == "literal_or" || filter.type == "iliteral_or"
+            || filter.type == "not_literal_or" || filter.type == "not_iliteral_or") {
+            ignoreCase = filter.type.indexOf("iliteral") >= 0;
+            negate = filter.type.indexOf("not_") == 0;
+            if (ignoreCase) {
+                for (var m=0; m<filter.filter.length; m++) {
+                    filter.filter[m] = filter.filter[m].toLowerCase();
+                }
+            }
+            fn = function(candidateValue) {
+                var v = ignoreCase ? candidateValue.toLowerCase() : candidateValue;
+                return filter.filter.indexOf(v) >= 0;
+            };
+        }
+        if (filter.type == "wildcard" || filter.type == "iwildcard" || filter.type == "regexp") {
+            ignoreCase = filter.type == "iwildcard";
+            var matchAll = (filter.type.indexOf("wildcard") >= 0 && filter.filter == "*")
+                        || (filter.type == "regexp" && filter.filter == ".*");
+            if (matchAll) {
+                fn = function(candidateValue) { return true; }
+            }
+            else {
+                var regexp = filter.filter;
+                if (filter.type.indexOf("wildcard") >= 0) {
+                    regexp = regexp.split(".").join("\\\\.");
+                    regexp = regexp.split("*").join(".*");
+                    regexp = regexp.split("\\\\..*").join("\\\\.");
+                }
+                if (ignoreCase) {
+                    regexp = regexp.toLowerCase();
+                }
+                fn = function(candidateValue) {
+                    var v = ignoreCase ? candidateValue.toLowerCase() : candidateValue;
+                    try {
+                        return v.match(new RegExp(regexp)) != null;
+                    }
+                    catch (regexpError) {
+                        // typical user error
+                        if (regexp != "*") {
+                            console.log("regexp("+regexp+") caused an error: "+regexpError);
+                        }
+                        return false;
+                    }
+                };
+            }
+        }
+        if (fn != null) {
+            for (var t=rawTimeSeries.length - 1; t>=0; t--) {
+                // time series doesn't have a tag we're querying
+                if (!rawTimeSeries[t].tags.hasOwnProperty(filter.tagk)) {
+                    rawTimeSeries.splice(t, 1);
+                    continue;
+                }
+                var tagValue = rawTimeSeries[t].tags[filter.tagk].tagv;
+                if (!fn(tagValue)) {
+                    rawTimeSeries.splice(t, 1);
+                    continue;
+                }
+            }
+        }
+    }   
+}
+
+/**
+ * Construct the unique sets of tags found in the results which match the given filters.
+ * @param rawTimeSeries Array of {
+ *                        metric:String, 
+ *                        metric_uid:String,
+ *                        tags: { tagk: { tagk:String, tagk_uid:String, tagv:String, tagv_uid:String} }
+ *                        dps: [ [ timestamp:Number, value:Number ] ]
+ *                      }
+ * @param filters Array of {tagk:String,type:String,filter:[String],group_by:Boolean}
+ * @returns Array of { tagk1:tagv1, tagk2:tagv2, ... }
+ */
+    
+var constructUniqueTagSetsFromRawResults = function(rawTimeSeries, filters) {
     var ret = [];
-    constructUniqueTagSetsInternal(tagsAndValueArrays, 0, ret, {})
+    var tagsIncluded = {};
+    for (var f=0; f<filters.length; f++) {
+        var filter = filters[f];
+        if (filter.group_by) {
+            tagsIncluded[filter.tagk] = filter.tagk;
+        }
+    }
+//    console.log("tagsIncluded = "+JSON.stringify(tagsIncluded));
+    
+    // so now we want to remove any kv pairs where they're not included
+    var sets = {};
+    for (var t=0; t<rawTimeSeries.length; t++) {
+        var ts = rawTimeSeries[t];
+        var kvArray = [];
+        var tagSet = {};
+        for (var tagk in ts.tags) {
+            if (ts.tags.hasOwnProperty(tagk) && tagsIncluded.hasOwnProperty(tagk)) {
+                kvArray.push(tagk+":"+ts.tags[tagk].tagv);
+                tagSet[tagk] = ts.tags[tagk].tagv;
+            }
+        }
+        kvArray.sort();
+        sets[JSON.stringify(kvArray)] = tagSet;
+
+//        console.log("added to sets: "+JSON.stringify(kvArray)+" = "+JSON.stringify(tagSet));
+    }
+    for (var uniqueKey in sets) {
+        if (sets.hasOwnProperty(uniqueKey)) {
+            ret.push(sets[uniqueKey]);
+        }
+    }
+    
     if (ret.length == 0) {
         ret.push({});
     }
     return ret;
 }
-var constructUniqueTagSetsInternal = function(tagsAndValueArrays, index, ret, curr) {
-    if (index >= tagsAndValueArrays.length) {
-        var newMap = {};
-        for (var k in curr) {
-            if (curr.hasOwnProperty(k)) {
-                newMap[k] = curr[k];
-            }
-            ret.push(newMap);
-        }
-        return;
-    }
 
-    for (var v=0; v<tagsAndValueArrays[index].tagv.length; v++) {
-        curr[tagsAndValueArrays[index].tagk] = tagsAndValueArrays[index].tagv[v];
-        constructUniqueTagSetsInternal(tagsAndValueArrays, index+1, ret, curr);
-        curr[tagsAndValueArrays[index].tagk] = null;
+/**
+ * Get the set of data series that match this tagset.
+ * @param rawTimeSeries Array of {
+ *                        metric:String, 
+ *                        metric_uid:String,
+ *                        tags: { tagk: { tagk:String, tagk_uid:String, tagv:String, tagv_uid:String} }
+ *                        dps: [ [ timestamp:Number, value:Number ] ]
+ *                      }
+ * @param tagset { tagk1:tagv1, tagk2:tagv2, ... }
+ * @returns Array of {
+ *                     metric:String, 
+ *                     tags: { tagk: { tagk:String, tagk_uid:String, tagv:String, tagv_uid:String} }
+ *                     dps: [ [ timestamp:Number, value:Number ] ]
+ *                   }
+ */
+var rawTimeSeriesForTagSet = function(rawTimeSeries, tagset) {
+    var ret = [];
+    for (var t=0; t<rawTimeSeries.length; t++) {
+        var ts = rawTimeSeries[t];
+        var exclude = false;
+        for (var tagk in tagset) {
+            if (tagset.hasOwnProperty(tagk)) {
+                if (!ts.tags.hasOwnProperty(tagk)) {
+                    exclude = true;
+                }
+                else if (ts.tags[tagk].tagv != tagset[tagk]) {
+                    exclude = true;
+                }   
+                else {
+//                    console.log("Tag "+tagk+"("+tagset[tagk]+") passed as matches ts: "+ts.tags[tagk].tagv)
+                }
+            }
+        }
+        if (!exclude) {
+            ret.push(ts);
+        }
     }
+    return ret;
 }
 
 var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms, showQuery, annotations, globalAnnotations, globalAnnotationsArray, showTsuids) {
@@ -348,6 +673,7 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
     var metricAndTags = colonSplit[colonSplit.length-1];
     var metric = metricAndTags;
     var tags = [];
+    var filters = [];
     var openCurly = metricAndTags.indexOf("{");
     var closeCurly = metricAndTags.indexOf("}");
     if (openCurly >= 0) {
@@ -362,12 +688,15 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
                 var kv = tagArray[t].split("=");
                 if (kv[1].indexOf("*")>=0) {
                     tags.push({tagk:kv[0],tagv:allTagValues(metric, kv[0])});
+                    filters.push({tagk:tags[t].tagk,type:"wildcard",filter:[kv[0]],group_by:true});
                 }
                 else if (kv[1].indexOf("|")>=0) {
                     tags.push({tagk:kv[0],tagv:kv[1].split("|")});
+                    filters.push({tagk:tags[t].tagk,type:"literal_or",filter:kv[1].split("|"),group_by:true});
                 }
                 else {
                     tags.push({tagk:kv[0],tagv:[kv[1]]});
+                    filters.push({tagk:tags[t].tagk,type:"literal_or",filter:[kv[1]],group_by:true});
                 }
             }
         }
@@ -383,11 +712,11 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
         query.rateOptions = null;
         query.tags = {};
         query.filters = []; // todo
-        for (var t=0; t<tags.length; t++) {
-            query.tags[tags[t].tagk] = tags[t].tagv;
-            var isWildcard = tags[t].tagv.indexOf("*") >= 0;
-            query.filters.push({tagk:tags[t].tagk,type:(isWildcard?"wildcard":"literal_or"),filter:tags[t].tagv,group_by:true});
-        }
+        // for (var t=0; t<tags.length; t++) {
+        //     query.tags[tags[t].tagk] = tags[t].tagv;
+        //     var isWildcard = tags[t].tagv.indexOf("*") >= 0;
+        //     query.filters.push({tagk:tags[t].tagk,type:(isWildcard?"wildcard":"literal_or"),filter:tags[t].tagv,group_by:true});
+        // }
     }
 
     if (config.verbose) {
@@ -397,8 +726,13 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
         console.log("  Down: "+(downsampled ? downsampled : false));
         console.log("  Tags: "+JSON.stringify(tags));
     }
+    
+    var rawTimeSeries = backend.performBackendQueries(startTime, endTime, ms, downsampled, metric, filters);
+    postBackendFiltering(rawTimeSeries, filters);
+    
+    var tagsets = constructUniqueTagSetsFromRawResults(rawTimeSeries, filters);
 
-    var tagsets = constructUniqueTagSets(tags);
+//    tagsets = constructUniqueTagSets(tags);
 
     if (config.verbose) {
         console.log("  Tsets:"+JSON.stringify(tagsets));
@@ -407,7 +741,9 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
     var ret = [];
     for (var s=0; s<tagsets.length; s++) {
 
-        var participatingTimeSeries = [];
+        var participatingTimeSeries = rawTimeSeriesForTagSet(rawTimeSeries, tagsets[s]);
+        /*
+        participatingTimeSeries = [];
         for (var t=0; t<timeseries.length; t++) {
             if (timeseries[t].metric == metric) {
                 var participating = true;
@@ -427,7 +763,7 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
                     participatingTimeSeries.push(timeseries[t]);
                 }
             }
-        }
+        }*/
 
         var aggregateTags = [];
         for (var p=0; p<participatingTimeSeries.length; p++) {
@@ -461,6 +797,8 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
 
         var startTimeNormalisedToReturnUnits = ms ? startTime.getTime() : startTime.getTime() / 1000;
         var endTimeNormalisedToReturnUnits = ms ? endTime.getTime() : endTime.getTime() / 1000;
+        var firstTimeStamp = startTimeNormalisedToReturnUnits % downsampleNumberComponent == 0 ? startTimeNormalisedToReturnUnits :
+            Math.floor((startTimeNormalisedToReturnUnits + downsampleNumberComponent) / downsampleNumberComponent) * downsampleNumberComponent;
 
         if (config.verbose) {
             console.log("normalised startTime      = "+Math.floor(startTimeNormalisedToReturnUnits));
@@ -468,79 +806,17 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
         }
 
         if (participatingTimeSeries.length > 0) {
-            var annotationsArray = [];
+            var annotationsArray = backend.performAnnotationsQueries(startTime, endTime, participatingTimeSeries);
             var tsuids = [];
-            // now generate some data
-            var participantData = new Array(participatingTimeSeries.length);
             for (var p=0; p<participatingTimeSeries.length; p++) {
                 tsuids.push(participatingTimeSeries[p].tsuid);
-                participantData[p] = [];
-                // chance of no data at all!
-                if (rand() >= config.probabilities.noData) {
-                    var firstTimeStamp = startTimeNormalisedToReturnUnits % downsampleNumberComponent == 0 ? startTimeNormalisedToReturnUnits :
-                        Math.floor((startTimeNormalisedToReturnUnits + downsampleNumberComponent) / downsampleNumberComponent) * downsampleNumberComponent;
-
-                    if (config.verbose) {
-                        console.log("Generating data for p="+p+", starting from "+firstTimeStamp);
-                    }
-
-                    for (var t=firstTimeStamp; t<=endTimeNormalisedToReturnUnits; t+=downsampleNumberComponent) {
-                        // chance of missing data point
-                        if (rand() >= config.probabilities.missingPoint) {
-                            var prevValue = participantData[p].length>0 ? participantData[p][participantData[p].length-1][1] : 0;
-                            var newValue = 0;
-                            switch (participatingTimeSeries[p].type) {
-                                case "counter":
-                                    newValue = prevValue+(rand()*100);
-                                    break;
-                                case "gauge":
-                                    var inc = (rand()-0.5)*20;
-                                    newValue = prevValue + inc;
-                                    if (participatingTimeSeries[p].constraints.hasOwnProperty("min")) {
-                                        newValue = Math.max(newValue, participatingTimeSeries[p].constraints.min);
-                                    }
-                                    if (participatingTimeSeries[p].constraints.hasOwnProperty("max")) {
-                                        newValue = Math.min(newValue, participatingTimeSeries[p].constraints.max);
-                                    }
-                                    break;
-                            }
-                            participantData[p].push([t, newValue]);
-
-                        }
-                        else if (config.verbose) {
-                            console.log("Missing datapoint at "+t);
-                        }
-                        // chance of inserting an annotation where there's no data point
-                        if (rand() <= config.probabilities.annotation) {
-                            var uid = tsuid(participatingTimeSeries[p].metric, participatingTimeSeries[p].tags);
-                            var ann = {
-                                "tsuid": uid,
-                                "description": "Testing Annotations",
-                                "notes": "These would be details about the event, the description is just a summary",
-                                "custom": {
-                                    "owner": "jdoe",
-                                    "dept": "ops"
-                                },
-                                "endTime": 0,
-                                "startTime": t
-                            };
-                            annotationsArray.push(ann);
-                        }
-                    }
-                }
-                else {
-                    if (config.verbose) {
-                        console.log("excluded as within 10%");
-                    }
-                }
                 if (config.verbose) {
-                    console.log("data = "+JSON.stringify(participantData[p]));
+                    console.log("data = "+JSON.stringify(participatingTimeSeries[p].dps));
                 }
             }
 
-            for (var p=participantData.length-1; p>=0; p--) {
-                if (participantData[p].length == 0) {
-                    participantData.splice(p, 1);
+            for (var p=participatingTimeSeries.length-1; p>=0; p--) {
+                if (participatingTimeSeries[p].dps.length == 0) {
                     participatingTimeSeries.splice(p, 1);
                 }
             }
@@ -560,19 +836,19 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
                 }
                 var points = [];
                 for (var i=0; i<indices.length; i++) {
-                    while (indices[i]<participantData[i].length && participantData[i][indices[i]][0]<t) {
+                    while (indices[i]<participatingTimeSeries[i].dps.length && participatingTimeSeries[i].dps[indices[i]][0]<t) {
                         indices[i]++;
                     }
-                    if (indices[i]<participantData[i].length && participantData[i][indices[i]][0] == t) {
+                    if (indices[i]<participatingTimeSeries[i].dps.length && participatingTimeSeries[i].dps[indices[i]][0] == t) {
                         if (config.verbose) {
                             console.log("     indices["+i+"] = "+JSON.stringify(indices[i]));
                         }
-                        if (indices[i]<participantData[i].length) {
-                            if (participantData[i][indices[i]][0]==t) {
+                        if (indices[i]<participatingTimeSeries[i].dps.length) {
+                            if (participatingTimeSeries[i].dps[indices[i]][0]==t) {
                                 if (config.verbose) {
                                     console.log("     a");
                                 }
-                                points.push(participantData[i][indices[i]][1]);
+                                points.push(participatingTimeSeries[i].dps[indices[i]][1]);
                             }
                             else { // next dp time is greater than time desired
                                 if (config.verbose) {
@@ -583,14 +859,14 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
                                     if (config.verbose) {
                                         console.log("     c");
                                     }
-                                    var gapSizeTime = participantData[i][indices[i]][0] - participantData[i][indices[i]-1][0];
-                                    var gapDiff = participantData[i][indices[i]][1] - participantData[i][indices[i]-1][1];
+                                    var gapSizeTime = participatingTimeSeries[i].dps[indices[i]][0] - participatingTimeSeries[i].dps[indices[i]-1][0];
+                                    var gapDiff = participatingTimeSeries[i].dps[indices[i]][1] - participatingTimeSeries[i].dps[indices[i]-1][1];
 
-                                    var datumToNow = t - participantData[i][indices[i]-1][0];
+                                    var datumToNow = t - participatingTimeSeries[i].dps[indices[i]-1][0];
                                     var datumToNowRatio = datumToNow / gapSizeTime;
 
                                     var gapDiffMultRatio = datumToNowRatio * gapDiff;
-                                    var newVal = participantData[i][indices[i]-1][1] + gapDiffMultRatio;
+                                    var newVal = participatingTimeSeries[i].dps[indices[i]-1][1] + gapDiffMultRatio;
                                     points.push(newVal);
                                 }
 
@@ -608,7 +884,7 @@ var performSingleMetricQuery = function(startTime, endTime, rand, m, arrays, ms,
                             val = sum(points);
                             break;
                         case "avg":
-                            val = sum(points)/participantData.length;
+                            val = sum(points)/participatingTimeSeries.length;
                             break;
                         case "min":
                             val = sum(points);
@@ -715,7 +991,7 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations,
     for (var a=0; a<mArray.length; a++) {
         var series = performSingleMetricQuery(startTime, endTime, rand, mArray[a], arrays, ms, showQuery, annotations, globalAnnotations, globalAnnotationsArray, showTsuids);
         ret = ret.concat(series);
-        console.log("Added "+series.length+" series")
+        //console.log("Added "+series.length+" series")
     }
 
     res.json(ret);
@@ -723,7 +999,7 @@ var queryImpl = function(start, end, mArray, arrays, ms, showQuery, annotations,
 
 var unioningFunction = function(jsons, valueProvider) {
 
-    // need to union tags across jsons
+    // need to union tags across jsons`
     // fill value 0
     // each entry in jsons is an array of timeseries
     var seriesByTagSet = {};
@@ -1251,7 +1527,7 @@ var configGet = function(req, res) {
 }
 
 // all routes exist here so we know what's implemented
-router.get('/suggest', suggestImpl);
+router.get('/suggest', backend.suggestImpl);
 router.get('/aggregators', aggregatorsImpl);
 router.post('/aggregators', aggregatorsImpl);
 router.get('/search/lookup', searchLookupGet);
@@ -1321,9 +1597,9 @@ var installFakeTsdb = function(app, incomingConfig) {
 }
 
 module.exports = {
-    addTimeSeries: addTimeSeries,
+    addTimeSeries: fakeBackend.addTimeSeries,
     install: installFakeTsdb,
-    reset: resetAllState
+    reset: fakeBackend.resetAllState
 }
 
 // command line running
@@ -1347,7 +1623,7 @@ if (require.main === module) {
                 console.log(" -p [port] : Specify the port to bind to")
                 console.log(" -v        : Verbose logging")
                 console.log(" -? --help : Show this help page")
-                return;
+                break;
             default:
                 console.error("Unrecognised option: "+args[i]);
         }

@@ -3,7 +3,7 @@
   "name": "faketsdb",
   "description": "A fake implementation of OpenTSDB, generating random but repeatable datasets to aid offline testing of API consumers",
   "repository": "https://github.com/eswdd/faketsdb",
-  "license": "GPL",
+  "license": "GPL-3.0-or-later",
   "keywords": [
     "opentsdb"
   ],
@@ -17,7 +17,8 @@
     "shelljs": "^0.6.0",
     "supertest": "^1.2.0",
     "tmp": "0.0.28",
-    "util": "^0.10.3"
+    "util": "^0.10.3",
+    "rewire": "^3.0.2"
   },
   "scripts": {
     "start": "node faketsdb.js",
