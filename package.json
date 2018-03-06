@@ -1,5 +1,5 @@
 {
-  "version": "0.3.1",
+  "version": "0.3.2",
   "name": "faketsdb",
   "description": "A fake implementation of OpenTSDB, generating random but repeatable datasets to aid offline testing of API consumers",
   "repository": "https://github.com/eswdd/faketsdb",
@@ -26,8 +26,8 @@
     "test-coverage": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec test/*"
   },
   "dependencies": {
-    "express": "^4.12.0",
-    "body-parser": "^1.15.0",
+    "express": "^4.16.2",
+    "body-parser": "^1.18.2",
     "seedrandom": "^2.4.2",
     "moment": "^2.11.2"
   },
