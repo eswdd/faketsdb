@@ -20,39 +20,34 @@ fakeBackend.resetAllState = function() {
     fakeBackend.tagvs = [];
 };
 
-fakeBackend.uidMetaFromName = function(type, name) {
+var uidMetaFromFn = function(type, fn) {
     var arr = [];
     switch (type) {
         case "metric": arr = fakeBackend.metrics; break;
         case "tagk": arr = fakeBackend.tagks; break;
         case "tagv": arr = fakeBackend.tagvs; break;
-        default: throw 'Unsupported type: '+type;
+        default:
+            callback(null, 'Unsupported type: '+type);
+            return;
     }
     for (var i=0; i<arr.length; i++) {
-        if (arr[i].name == name) {
+        if (fn(arr[i])) {
             return arr[i];
         }
     }
     return null;
-}
+};
 
-fakeBackend.uidMetaFromUid = function(type, uid) {
-    var arr = [];
-    switch (type) {
-        case "metric": arr = fakeBackend.metrics; break;
-        case "tagk": arr = fakeBackend.tagks; break;
-        case "tagv": arr = fakeBackend.tagvs; break;
-        default: throw 'Unsupported type: '+type;
-    }
-    for (var i=0; i<arr.length; i++) {
-        if (arr[i].uid == uid) {
-            return arr[i];
-        }
-    }
-    return null;
-}
+var uidMetaFromName = function(type, name) {
+    return uidMetaFromFn(type, function(arrItem){return arrItem.name === name});
+};
 
-fakeBackend.assignUidIfNecessary = function(type, name) {
+// on backend api
+fakeBackend.uidMetaFromUid = function(type, uid, callback) {
+    callback(uidMetaFromFn(type, function(arrItem){return arrItem.uid === uid}));
+};
+
+var assignUidIfNecessary = function(type, name) {
     var arr = [];
     switch (type) {
         case "metric": arr = fakeBackend.metrics; break;
@@ -62,12 +57,12 @@ fakeBackend.assignUidIfNecessary = function(type, name) {
     }
 
     for (var i=0; i<arr.length; i++) {
-        if (arr[i].name == name) {
+        if (arr[i].name === name) {
             return arr[i].uid; // nothing to do
         }
     }
 
-    var lastUid = arr.length == 0 ? 0 : parseInt(arr[arr.length-1].uid, 16);
+    var lastUid = arr.length === 0 ? 0 : parseInt(arr[arr.length-1].uid, 16);
     var nextUid = (lastUid+1).toString(16);
     while (nextUid.length < 6) {
         nextUid = "0" + nextUid;
@@ -81,11 +76,11 @@ fakeBackend.addTimeSeries = function(metric, tags, type, dataConstraints) {
     // see if exists
     for (var i=0; i<fakeBackend.timeseries.length; i++) {
         var match = false;
-        if (fakeBackend.timeseries[i].metric == metric) {
+        if (fakeBackend.timeseries[i].metric === metric) {
             match = true;
             for (var k1 in tags) {
                 if (tags.hasOwnProperty(k1) && fakeBackend.timeseries[i].tags.hasOwnProperty(k1)) {
-                    if (tags[k1] != fakeBackend.timeseries[i].tags[k1]) {
+                    if (tags[k1] !== fakeBackend.timeseries[i].tags[k1]) {
                         match = false;
                         break;
                     }
@@ -100,11 +95,11 @@ fakeBackend.addTimeSeries = function(metric, tags, type, dataConstraints) {
 
     // assign uids if needed
     var tsuid = "";
-    tsuid += fakeBackend.assignUidIfNecessary("metric", metric);
+    tsuid += assignUidIfNecessary("metric", metric);
     for (var tagk in tags) {
         if (tags.hasOwnProperty(tagk)) {
-            tsuid += fakeBackend.assignUidIfNecessary("tagk", tagk);
-            tsuid += fakeBackend.assignUidIfNecessary("tagv", tags[tagk]);
+            tsuid += assignUidIfNecessary("tagk", tagk);
+            tsuid += assignUidIfNecessary("tagv", tags[tagk]);
         }
     }
 
@@ -114,27 +109,50 @@ fakeBackend.addTimeSeries = function(metric, tags, type, dataConstraints) {
 
     // now can add
     fakeBackend.timeseries.push({metric: metric, tags: tags, type: type, constraints: dataConstraints, tsuid: tsuid});
-}
+};
 
-fakeBackend.suggestMetrics = function(query) {
+// on backend api
+fakeBackend.storePoints = function(points, callback) {
+    var ret = [];
+    for (var p=0; p<points.length; p++) {
+        ret.push("storePoints not supported by faketsdb");
+    }
+    callback(ret);
+};
+
+// on backend api
+fakeBackend.suggestMetrics = function(query, callback) {
+    var ret = [];
     if (!query) {
-        return fakeBackend.metrics.map(function(m) {return m.name});
+        ret = fakeBackend.metrics.map(function(m) {return m.name});
     }
     else {
-        var ret = [];
         for (var i=0; i<fakeBackend.metrics.length; i++) {
-            if (fakeBackend.metrics[i].name.indexOf(query)==0) {
+            if (fakeBackend.metrics[i].name.indexOf(query) === 0) {
                 ret.push(fakeBackend.metrics[i].name);
             }
         }
-        return ret;
     }
+    callback(ret);
 };
 
-fakeBackend.searchLookupImpl = function(metric, limit, useMeta) {
+// on backend api
+fakeBackend.suggestTagKeys = function(query, callback) {
+    var ret = []; // todo
+    callback(ret);
+};
+
+// on backend api
+fakeBackend.suggestTagValues = function(query, callback) {
+    var ret = []; // todo
+    callback(ret);
+};
+
+// on backend api
+fakeBackend.searchLookupImpl = function(metric, limit, useMeta, callback) {
     var ret = [];
     for (var i=0; i<fakeBackend.timeseries.length; i++) {
-        if (fakeBackend.timeseries[i].metric == metric) {
+        if (fakeBackend.timeseries[i].metric === metric) {
             var uid = tsuid(metric, fakeBackend.timeseries[i].tags);
             var ts = {
                 metric: metric,
@@ -144,33 +162,20 @@ fakeBackend.searchLookupImpl = function(metric, limit, useMeta) {
             ret.push(ts);
         }
     }
-    return ret;
+    callback(ret);
 };
 
-fakeBackend.allTagValues = function(metric, tagk) {
-    var ret = [];
-    for (var t=0; t<fakeBackend.timeseries.length; t++) {
-        if (fakeBackend.timeseries[t].metric == metric) {
-            if (fakeBackend.timeseries[t].tags.hasOwnProperty(tagk)) {
-                if (ret.indexOf(fakeBackend.timeseries[t].tags[tagk]) < 0) {
-                    ret.push(fakeBackend.timeseries[t].tags[tagk]);
-                }
-            }
-        }
-    }
-    return ret;
-};
-
-fakeBackend.performAnnotationsQueries = function(startTime, endTime, downsampleSeconds, ms, participatingTimeSeries) {
+// on backend api
+fakeBackend.performAnnotationsQueries = function(startTime, endTime, downsampleSeconds, participatingTimeSeries, callback) {
     var annotationsArray = [];
 
     var seed = startTime + (endTime ? endTime : "");
     var rand = new Math.seedrandom(seed);
 
-    var startTimeNormalisedToReturnUnits = ms ? startTime.getTime() : startTime.getTime() / 1000;
-    var endTimeNormalisedToReturnUnits = ms ? endTime.getTime() : endTime.getTime() / 1000;
+    var startTimeNormalisedToReturnUnits = startTime.getTime();
+    var endTimeNormalisedToReturnUnits = endTime.getTime();
 
-    var firstTimeStamp = (startTimeNormalisedToReturnUnits % downsampleSeconds) == 0 ? startTimeNormalisedToReturnUnits :
+    var firstTimeStamp = (startTimeNormalisedToReturnUnits % downsampleSeconds) === 0 ? startTimeNormalisedToReturnUnits :
         Math.floor((startTimeNormalisedToReturnUnits + downsampleSeconds) / downsampleSeconds) * downsampleSeconds;
 
     for (var t=firstTimeStamp; t<=endTimeNormalisedToReturnUnits; t+=downsampleSeconds) {
@@ -192,9 +197,11 @@ fakeBackend.performAnnotationsQueries = function(startTime, endTime, downsampleS
         }
     }
 
-    return annotationsArray;
-}
-fakeBackend.performGlobalAnnotationsQuery = function(startTime, endTime) {
+    callback(annotationsArray);
+};
+
+// on backend api
+fakeBackend.performGlobalAnnotationsQuery = function(startTime, endTime, callback) {
     var seed = startTime + (endTime ? endTime : "");
     var rand = new Math.seedrandom(seed);
 
@@ -223,25 +230,11 @@ fakeBackend.performGlobalAnnotationsQuery = function(startTime, endTime) {
 
         t += parseInt(inc);
     }
-    return globalAnnotationsArray;
-}
+    callback(globalAnnotationsArray);
+};
 
-/**
- * Loads time series data for the given query, applies pre-query filtering where possible
- * @param startTime DateTime
- * @param endTime DateTime
- * @param ms Boolean
- * @param downsample String
- * @param metric String
- * @param filters Array of {tagk:String,type:String,filter:[String],group_by:Boolean}
- * @returns Array of {
- *                     metric:String,
- *                     metric_uid:String,
- *                     tags: { tagk: { tagk:String, tagk_uid:String, tagv:String, tagv_uid:String} }
- *                     dps: [ [ timestamp:Number, value:Number ] ]
- *                   }
- */
-fakeBackend.performBackendQueries = function(startTime, endTime, ms, downsample, metric, filters) {
+// on backend api
+fakeBackend.performBackendQueries = function(startTime, endTime, downsample, metric, filters, callback) {
     /*
     var rawTimeSeries = [
         {
@@ -280,14 +273,13 @@ fakeBackend.performBackendQueries = function(startTime, endTime, ms, downsample,
 
     var downsampleNumberComponent = downsample ? downsample.match(/^[0-9]+/) : 10;
     var downsampleStringComponent = downsample ? downsample.split("-")[0].match(/[a-zA-Z]+$/)[0] : "s";
-    var msMultiplier = ms ? 1000 : 1;
     switch (downsampleStringComponent) {
-        case 's': downsampleNumberComponent *= 1 * msMultiplier; break;
-        case 'm': downsampleNumberComponent *= 60 * msMultiplier; break;
-        case 'h': downsampleNumberComponent *= 3600 * msMultiplier; break;
-        case 'd': downsampleNumberComponent *= 86400 * msMultiplier; break;
-        case 'w': downsampleNumberComponent *= 7 * 86400 * msMultiplier; break;
-        case 'y': downsampleNumberComponent *= 365 * 86400 * msMultiplier; break;
+        case 's': downsampleNumberComponent *= 1000; break;
+        case 'm': downsampleNumberComponent *= 60 * 1000; break;
+        case 'h': downsampleNumberComponent *= 3600 * 1000; break;
+        case 'd': downsampleNumberComponent *= 86400 * 1000; break;
+        case 'w': downsampleNumberComponent *= 7 * 86400 * 1000; break;
+        case 'y': downsampleNumberComponent *= 365 * 86400 * 1000; break;
         default:
             if (config.verbose) {
                 console.log("unrecognized downsample unit: "+downsampleStringComponent);
@@ -295,14 +287,14 @@ fakeBackend.performBackendQueries = function(startTime, endTime, ms, downsample,
     }
 
 
-    var startTimeNormalisedToReturnUnits = ms ? startTime.getTime() : startTime.getTime() / 1000;
-    var endTimeNormalisedToReturnUnits = ms ? endTime.getTime() : endTime.getTime() / 1000;
+    var startTimeNormalisedToReturnUnits = startTime.getTime();
+    var endTimeNormalisedToReturnUnits = endTime.getTime();
 
     var participatingTimeSeries = [];
     for (var p=0; p<fakeBackend.timeseries.length; p++) {
-        if (fakeBackend.timeseries[p].metric == metric) {
+        if (fakeBackend.timeseries[p].metric === metric) {
             if (config.verbose) {
-                console.log("    Participant: "+t);
+                console.log("    Participant: "+p);
             }
             var metric_uid = uid("metric", metric);
             var ts_uid = metric_uid;
@@ -319,7 +311,7 @@ fakeBackend.performBackendQueries = function(startTime, endTime, ms, downsample,
 
             // chance of no data at all!
             if (rand() >= config.probabilities.noData) {
-                var firstTimeStamp = startTimeNormalisedToReturnUnits % downsampleNumberComponent == 0 ? startTimeNormalisedToReturnUnits :
+                var firstTimeStamp = startTimeNormalisedToReturnUnits % downsampleNumberComponent === 0 ? startTimeNormalisedToReturnUnits :
                     Math.floor((startTimeNormalisedToReturnUnits + downsampleNumberComponent) / downsampleNumberComponent) * downsampleNumberComponent;
 
                 if (config.verbose) {
@@ -370,21 +362,11 @@ fakeBackend.performBackendQueries = function(startTime, endTime, ms, downsample,
         }
     }
 
-    // uidMetaFromName
-
-    return participatingTimeSeries;
-}
-
-var backend = fakeBackend;
-// public interface:
-//   uidMetaFromName = function(type, name)
-//   backend.uidMetaFromUid(queryParams["type"], queryParams["uid"]);
-//   backend.searchLookupImpl(req.body.metric, req.body.limit, req.body.useMeta);
-//   backend.performBackendQueries(startTime, endTime, ms, downsampled, metric, filters);
-//   backend.performAnnotationsQueries(startTime, endTime, participatingTimeSeries);
+    callback(participatingTimeSeries);
+};
 
 var uid = function(type, name) {
-    var meta = backend.uidMetaFromName(type, name);
+    var meta = uidMetaFromName(type, name);
     if (meta != null) {
         return meta.uid;
     }
@@ -421,7 +403,7 @@ var applyOverrides = function(from, to) {
             }
         }
     }
-}
+};
 
 var installFakeTsdb = function(app, incomingConfig) {
     if (!incomingConfig) {
@@ -446,13 +428,13 @@ var installFakeTsdb = function(app, incomingConfig) {
 
     api.backend(fakeBackend);
     api.install(app, config);
-}
+};
 
 module.exports = {
     addTimeSeries: fakeBackend.addTimeSeries,
     install: installFakeTsdb,
     reset: fakeBackend.resetAllState
-}
+};
 
 // command line running
 if (require.main === module) {
@@ -472,9 +454,9 @@ if (require.main === module) {
             case '-?':
             case '--help':
                 console.log("Usage: node faketsdb.js [options]");
-                console.log(" -p [port] : Specify the port to bind to")
-                console.log(" -v        : Verbose logging")
-                console.log(" -? --help : Show this help page")
+                console.log(" -p [port] : Specify the port to bind to");
+                console.log(" -v        : Verbose logging");
+                console.log(" -? --help : Show this help page");
                 break;
             default:
                 console.error("Unrecognised option: "+args[i]);
@@ -499,8 +481,8 @@ if (require.main === module) {
     installFakeTsdb(app, conf);
 
     var server = app.listen(config.port, function() {
-        var host = server.address().address
-        var port = server.address().port
+        var host = server.address().address;
+        var port = server.address().port;
 
         console.log('FakeTSDB running at http://%s:%s', host, port)
     });

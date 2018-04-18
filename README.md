@@ -6,7 +6,7 @@
 
 # faketsdb
 
-Fake implementation of OpenTSDB API as an Express Router to aid in the development of API consumers.
+Fake implementation of nodetsdb-api's backend interface
 
 ## Usage
 
@@ -40,16 +40,6 @@ Or embed in an existing application using Express:
 
     // add some time series
     faketsdb.addTimeSeries("some.metric", {host:"host01}, "gauge")
-
-Current implemented endpoints:
-
- * /api/aggregators - GET
- * /api/aggregators - POST
- * /api/query - GET
- * /api/search/lookup - GET
- * /api/search/lookup - POST
- * /api/suggest - GET
- * /api/uid/uidmeta - GET
 
 ## License
 
