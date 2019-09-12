@@ -181,7 +181,7 @@ fakeBackend.performAnnotationsQueries = function(startTime, endTime, downsampleS
     for (var t=firstTimeStamp; t<=endTimeNormalisedToReturnUnits; t+=downsampleSeconds) {
         // chance of inserting an annotation where there's no data point
         if (rand() <= config.probabilities.annotation) {
-            var uid = participatingTimeSeries[p].ts_uid;
+            var uid = participatingTimeSeries[0].ts_uid;
             var ann = {
                 "tsuid": uid,
                 "description": "Testing Annotations",
