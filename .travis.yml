@@ -1,13 +1,12 @@
 language: node_js
 sudo: false
 node_js:
-  - "6"
-  - "7"
-  - "8"
-  - "9"
-  - "10"
   - "11"
-  - "stable"
+  - "12"
+  - "13"
+  - "14"
+  - "15"
+  - "node"
 notifications:
   email:
     on_success: always
