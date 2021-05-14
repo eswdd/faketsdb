@@ -3,6 +3,7 @@
 [![GPL License][license-image]][license-url]
 [![Build Status][travis-image]][travis-url]
 [![Coverage][coverage-image]][coverage-url]
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb?ref=badge_shield)
 
 # faketsdb
 
@@ -57,3 +58,5 @@ Faketsdb is freely distributable under the terms of the [GPL license](https://gi
 
 [coverage-url]: https://coveralls.io/r/eswdd/faketsdb
 [coverage-image]: https://coveralls.io/repos/github/eswdd/faketsdb/badge.svg
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb?ref=badge_large)
