@@ -26,7 +26,7 @@
     "test-coverage": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec test/*"
   },
   "dependencies": {
-    "express": "^4.17.3",
+    "express": "^4.18.2",
     "seedrandom": "^2.4.4",
     "nodetsdb-api": "^0.3.0"
   },
