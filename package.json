@@ -13,6 +13,7 @@
     "http-server": "^14.1.1",
     "istanbul": "^0.4.2",
     "mocha": "^10.2.0",
+    "nyc": "^15.1.0",
     "protractor": "^7.0.0",
     "rewire": "^6.0.0",
     "shelljs": "^0.8.5",
@@ -23,12 +24,12 @@
   "scripts": {
     "start": "node faketsdb.js",
     "test": "mocha -R spec test/*",
-    "test-coverage": "istanbul cover ./node_modules/mocha/bin/_mocha -- -R spec test/*"
+    "test-coverage": "nyc mocha -R spec test/*"
   },
   "dependencies": {
     "express": "^4.17.3",
-    "seedrandom": "^2.4.4",
-    "nodetsdb-api": "^0.3.0"
+    "nodetsdb-api": "^0.3.0",
+    "seedrandom": "^2.4.4"
   },
   "main": "faketsdb.js",
   "bin": {
