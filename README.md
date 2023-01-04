@@ -1,9 +1,9 @@
 [![NPM version][npm-version-image]][npm-url]
 [![NPM downloads][npm-downloads-image]][npm-url]
 [![GPL License][license-image]][license-url]
-[![Build Status][travis-image]][travis-url]
+[![Build Status][github-build-image]][github-build-url]
 [![Coverage][coverage-image]][coverage-url]
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb?ref=badge_shield)
+[![FOSSA Status][fossa-image]][fossa-url]
 
 # faketsdb
 
@@ -46,6 +46,10 @@ Or embed in an existing application using Express:
 
 Faketsdb is freely distributable under the terms of the [GPL license](https://github.com/eswdd/faketsdb/blob/master/LICENSE).
 
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb?ref=badge_large)
+
+<!-- Reference style link definitions -->
+
 [license-image]: http://img.shields.io/badge/license-GPL-blue.svg?style=flat
 [license-url]: LICENSE
 
@@ -53,10 +57,11 @@ Faketsdb is freely distributable under the terms of the [GPL license](https://gi
 [npm-version-image]: http://img.shields.io/npm/v/faketsdb.svg?style=flat
 [npm-downloads-image]: http://img.shields.io/npm/dm/faketsdb.svg?style=flat
 
-[travis-url]: http://travis-ci.org/eswdd/faketsdb
-[travis-image]: http://img.shields.io/travis/eswdd/faketsdb/master.svg?style=flat
-
 [coverage-url]: https://coveralls.io/r/eswdd/faketsdb
 [coverage-image]: https://coveralls.io/repos/github/eswdd/faketsdb/badge.svg
 
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb?ref=badge_large)
+[github-build-url]: https://github.com/eswdd/faketsdb/actions/workflows/node.js.yml
+[github-build-image]: https://github.com/eswdd/faketsdb/actions/workflows/node.js.yml/badge.svg
+
+[fossa-url]: https://app.fossa.io/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb?ref=badge_shield
+[fossa-image]: https://app.fossa.io/api/projects/git%2Bgithub.com%2Feswdd%2Ffaketsdb.svg?type=shield
