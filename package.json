@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "express": "^4.17.3",
-    "nodetsdb-api": "^0.3.0",
+    "nodetsdb-api": "^0.3.1",
     "seedrandom": "^2.4.4"
   },
   "main": "faketsdb.js",
