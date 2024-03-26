@@ -27,7 +27,7 @@
     "test-coverage": "nyc mocha -R spec test/*"
   },
   "dependencies": {
-    "express": "^4.17.3",
+    "express": "^4.19.2",
     "nodetsdb-api": "^0.3.0",
     "seedrandom": "^2.4.4"
   },
